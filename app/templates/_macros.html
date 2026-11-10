@@ -1,0 +1,32 @@
+{% macro avatar(person, size="md") -%}
+{% if person.photo %}
+<img class="avatar {{ size }}" src="/photos/{{ person.photo }}" alt="">
+{% else %}
+<span class="avatar {{ size }} initials">{{ person.name[:1] | upper }}</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro when(in_days) -%}
+{% if in_days == 0 %}today{% elif in_days == 1 %}tomorrow{% else %}in {{ in_days }} days{% endif %}
+{%- endmacro %}
+
+{% macro birthday_list(birthdays) -%}
+<section class="card">
+  <h2>Upcoming birthdays</h2>
+  {% if birthdays %}
+  <ul class="birthdays">
+    {% for b in birthdays %}
+    <li>
+      <a href="/people/{{ b.id }}">
+        {{ avatar(b, "sm") }}
+        <span class="grow"><strong>{{ b.name }}</strong>{% if b.turning %} turns {{ b.turning }}{% endif %}</span>
+        <span class="muted {{ 'hot' if b.in_days <= 7 }}">{{ b.date.strftime("%a %d %b") }} &middot; {{ when(b.in_days) }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">None in the next 30 days.</p>
+  {% endif %}
+</section>
+{%- endmacro %}
