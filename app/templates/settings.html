@@ -1,5 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Settings · Rememberry{% endblock %}
+{% block title %}Settings · Rememberry
+<section class="card">
+  <h2>Backup &amp; export</h2>
+  <p class="muted">The zip holds a consistent copy of the database and every uploaded photo. To restore, stop the container and unzip it into the data folder.</p>
+  <div class="actions">
+    <a class="btn primary" href="/export/backup.zip" download>Download backup (.zip)</a>
+    <a class="btn" href="/export/journal.md" download>Export journal (Markdown)</a>
+  </div>
+</section>
+{% endblock %}
 {% block content %}
 <section class="card">
   <h1>Settings</h1>

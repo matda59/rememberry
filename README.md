@@ -8,6 +8,7 @@ A small, self-hosted personal app with two things in it:
 - **Quick notes**: short dated notes on a person ("Started a new job", "Asked about Mia's recital"), newest first, next to the free-text fields.
 - **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
 - **Moods and photos**: pick a mood emoji and attach one photo per journal day. The journal calendar shows each day's mood for the month.
+- **Backup and export**: one-click zip of the database and photos, and a Markdown export of the journal, from the settings page.
 - **@mentions**: type `@` in a journal entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
 
 Single user, one container, one port, everything stored in `/data`.
@@ -27,7 +28,7 @@ Everything lives in the `/data` volume:
 | `/data/rememberry.db` | SQLite database (people + journal) |
 | `/data/uploads/` | Uploaded photos |
 
-Back up that folder and you have backed up everything.
+Back up that folder and you have backed up everything. You can also grab a backup from the browser: **Settings → Download backup** gives a zip with a consistent copy of the database, every photo, and the journal as Markdown (`journal.md`); **Export journal** downloads just the Markdown. To restore a backup zip, stop the container, unzip it into the data folder (replacing `rememberry.db` and `uploads/`), and start it again.
 
 ### Upgrades
 

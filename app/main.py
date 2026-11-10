@@ -5,17 +5,21 @@ import logging
 import os
 import re
 import secrets
+import shutil
+import tempfile
 import threading
 import time
 import uuid
+import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 
 from . import db, notify
 
@@ -202,6 +206,51 @@ def settings_test(request: Request):
     results = notify.send_all("Rememberry test", "Test notification from Rememberry. If you can read this, "
                               "birthday reminders will reach you here.")
     return settings_page(request, results=results or [("No channel configured", "Set one of the env vars below.")])
+
+
+# ---------- backup / export ----------
+
+@app.get("/export/backup.zip")
+def export_backup():
+    tmp = Path(tempfile.mkdtemp(prefix="rememberry-"))
+    db.backup_to(tmp / "rememberry.db")
+    archive = tmp / "backup.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.write(tmp / "rememberry.db", "rememberry.db", compress_type=zipfile.ZIP_DEFLATED)
+        zf.writestr("journal.md", journal_markdown(), compress_type=zipfile.ZIP_DEFLATED)
+        for f in sorted(db.UPLOAD_DIR.iterdir()):
+            if f.is_file():
+                zf.write(f, f"uploads/{f.name}")
+    cleanup = BackgroundTask(shutil.rmtree, tmp, ignore_errors=True)
+    return FileResponse(archive, media_type="application/zip", background=cleanup,
+                        filename=f"rememberry-backup-{today().isoformat()}.zip")
+
+
+def journal_markdown() -> str:
+    with db.connect() as conn:
+        entries = conn.execute(f"SELECT * FROM journal WHERE {NONEMPTY_ENTRY} ORDER BY day").fetchall()
+        mentions: dict[str, list[str]] = {}
+        for r in conn.execute("SELECT m.day, p.name FROM mentions m JOIN people p ON p.id = m.person_id "
+                              "ORDER BY p.name COLLATE NOCASE"):
+            mentions.setdefault(r["day"], []).append(r["name"])
+    out = ["# Rememberry journal", ""]
+    for e in entries:
+        d = date.fromisoformat(e["day"])
+        out.append(f"## {d:%A, %d %B %Y}" + (f" {e['mood']}" if e["mood"] else ""))
+        out.append("")
+        if e["body"]:
+            out += [e["body"], ""]
+        if e["photo"]:
+            out += [f"![Photo](uploads/{e['photo']})", ""]
+        if e["day"] in mentions:
+            out += ["People: " + ", ".join(mentions[e["day"]]), ""]
+    return "\n".join(out)
+
+
+@app.get("/export/journal.md")
+def export_journal():
+    return Response(journal_markdown(), media_type="text/markdown; charset=utf-8", headers={
+        "Content-Disposition": f'attachment; filename="rememberry-journal-{today().isoformat()}.md"'})
 
 
 # ---------- mentions ----------
