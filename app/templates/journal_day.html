@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mention_chips %}
+{% from "_macros.html" import mention_chips, entry_extras %}
 {% block title %}{{ day.isoformat() }} · Rememberry{% endblock %}
 {% block content %}
 <section class="card">
@@ -13,8 +13,9 @@
     <a class="btn" href="/journal/{{ next_day.isoformat() }}" title="Next day">&rarr;</a>
     {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
   </div>
-  <form method="post" action="/journal/{{ day.isoformat() }}">
+  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data">
     <textarea name="body" rows="10" placeholder="Nothing written for this day." data-mentions>{{ entry.body if entry else "" }}</textarea>
+    {{ entry_extras(entry, moods) }}
     <div class="actions">
       <button class="primary">Save</button>
       {% if saved %}<span class="pill ok">Saved</span>{% endif %}

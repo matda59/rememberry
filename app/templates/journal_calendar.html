@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ first.strftime("%B %Y") }} · Rememberry{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <a class="btn" href="/journal/calendar?month={{ prev_month.isoformat()[:7] }}" title="Previous month">&larr;</a>
+    <div class="center">
+      <p class="eyebrow">Journal</p>
+      <h1>{{ first.strftime("%B %Y") }}</h1>
+    </div>
+    {% if next_month %}<a class="btn" href="/journal/calendar?month={{ next_month.isoformat()[:7] }}" title="Next month">&rarr;</a>
+    {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
+  </div>
+  <div class="calendar">
+    {% for name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}<div class="dow">{{ name }}</div>{% endfor %}
+    {% for week in weeks %}{% for d in week %}
+    {% set e = entries.get(d.isoformat()) %}
+    {% set cls = ["day", "other" if d.month != first.month, "today" if d == today, "has" if e, "future" if d > today]|select|join(" ") %}
+    {% if d > today %}
+    <span class="{{ cls }}"><span class="num">{{ d.day }}</span></span>
+    {% else %}
+    <a class="{{ cls }}" href="{{ '/' if d == today else '/journal/' ~ d.isoformat() }}" title="{{ d.strftime('%a %d %b') }}{% if e and e.mood %}: {{ moods[e.mood] }}{% endif %}">
+      <span class="num">{{ d.day }}</span>
+      {% if e and e.mood %}<span class="mood">{{ e.mood }}</span>{% elif e %}<span class="dot"></span>{% endif %}
+      {% if e and e.photo %}<span class="cam" aria-label="photo">&#128247;&#xFE0E;</span>{% endif %}
+    </a>
+    {% endif %}
+    {% endfor %}{% endfor %}
+  </div>
+  {% if mood_counts %}
+  <p class="chips">{% for mood, n in mood_counts %}<span class="chip tag">{{ mood }} {{ moods[mood] }} <span class="count">{{ n }}</span></span>{% endfor %}</p>
+  {% endif %}
+  <div class="actions"><a class="btn" href="/journal">List view</a></div>
+</section>
+{% endblock %}

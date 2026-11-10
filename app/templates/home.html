@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import birthday_list, mention_chips %}
+{% from "_macros.html" import birthday_list, mention_chips, entry_extras %}
 {% block content %}
 <section class="card today">
   <div class="card-head">
@@ -9,8 +9,9 @@
     </div>
     {% if saved %}<span class="pill ok">Saved</span>{% endif %}
   </div>
-  <form method="post" action="/journal/{{ day.isoformat() }}">
+  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data">
     <textarea name="body" rows="8" placeholder="What did you do today? How did you feel? Type @ to mention someone." autofocus data-mentions>{{ entry.body if entry else "" }}</textarea>
+    {{ entry_extras(entry, moods) }}
     <div class="actions">
       <button class="primary">Save entry</button>
       {% if entry and entry.body %}<span class="muted small">Last saved {{ entry.updated_at }} UTC</span>{% endif %}
@@ -26,7 +27,8 @@
     {% for e in on_this_day %}
     {% set years = day.year - e.day[:4]|int %}
     <li><a href="/journal/{{ e.day }}">
-      <span class="date">{{ years }} year{{ "s" if years != 1 }} ago &middot; {{ e.day[:4] }}</span>
+      <span class="date">{{ e.mood }} {{ years }} year{{ "s" if years != 1 }} ago &middot; {{ e.day[:4] }}</span>
+      {% if e.photo %}<img class="thumb" src="/photos/{{ e.photo }}" alt="">{% endif %}
       <span class="excerpt">{{ e.body[:240] }}{% if e.body|length > 240 %}&hellip;{% endif %}</span>
     </a></li>
     {% endfor %}
@@ -45,7 +47,7 @@
   <ul class="entries">
     {% for e in recent %}
     <li><a href="/journal/{{ e.day }}">
-      <span class="date">{{ e.day }}</span>
+      <span class="date">{{ e.day }} {{ e.mood }}</span>
       <span class="excerpt">{{ e.body[:160] }}{% if e.body|length > 160 %}&hellip;{% endif %}</span>
     </a></li>
     {% endfor %}

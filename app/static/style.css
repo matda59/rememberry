@@ -188,3 +188,44 @@ ul.quick-notes li + li { border-top: 1px solid var(--line); }
 .chip.tag { padding: .2rem .7rem; background: transparent; border: 1px solid var(--line); color: var(--muted); }
 .chip.tag.on, .chip.tag:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .chip .count { font-weight: 400; opacity: .7; }
+
+.moods { display: flex; flex-wrap: wrap; gap: .3rem; border: 0; padding: 0; margin: .7rem 0 0; align-items: center; }
+.moods legend { float: left; margin-right: .4rem; }
+.moods label { cursor: pointer; }
+.moods input { position: absolute; opacity: 0; pointer-events: none; }
+.moods span {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.3rem; height: 2.3rem;
+  font-size: 1.3rem; border-radius: 50%; border: 1px solid transparent; filter: grayscale(.7); opacity: .7;
+}
+.moods span.none { font-size: 1rem; color: var(--muted); }
+.moods label:hover span { opacity: 1; filter: none; }
+.moods input:checked + span { border-color: var(--accent); background: var(--accent-soft); filter: none; opacity: 1; }
+.moods input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-soft); }
+.entry-photo { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin-top: .7rem; }
+.entry-photo img { display: block; max-width: 100%; max-height: 320px; border-radius: 10px; }
+.entry-photo a { flex-basis: 100%; }
+.file-btn { display: inline-flex; align-items: center; gap: .4rem; font-size: .88rem; color: var(--muted); }
+.file-btn input { font-size: .85rem; max-width: 15rem; }
+.thumb { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin: .3rem 0; }
+
+.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: .3rem; }
+.calendar .dow { text-align: center; font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.calendar .day {
+  position: relative; aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text);
+}
+.calendar a.day:hover { text-decoration: none; border-color: var(--accent); }
+.calendar .num { position: absolute; top: .2rem; left: .35rem; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.calendar .mood { font-size: 1.6rem; line-height: 1; }
+.calendar .dot { width: .45rem; height: .45rem; border-radius: 50%; background: var(--accent); }
+.calendar .cam { position: absolute; bottom: .15rem; right: .3rem; font-size: .7rem; color: var(--muted); }
+.calendar .has { background: var(--accent-soft); border-color: transparent; }
+.calendar .today { border-color: var(--accent); border-width: 2px; }
+.calendar .today .num { color: var(--accent); font-weight: 700; }
+.calendar .other { opacity: .4; }
+.calendar .future { opacity: .35; }
+@media (max-width: 560px) {
+  .calendar { gap: .2rem; }
+  .calendar .mood { font-size: 1.25rem; }
+  .moods span { width: 2.1rem; height: 2.1rem; font-size: 1.15rem; }
+}

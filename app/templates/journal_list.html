@@ -4,6 +4,7 @@
 <div class="page-head">
   <h1>Journal</h1>
   <form method="get" action="/journal/go" class="row">
+    <a class="btn" href="/journal/calendar">Calendar</a>
     <input type="date" name="day" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required>
     <button>Go</button>
   </form>
@@ -16,7 +17,7 @@
   <ul class="entries">
     {% for e in entries %}
     <li><a href="/journal/{{ e.day }}">
-      <span class="date">{{ e.day }}</span>
+      <span class="date">{{ e.day }} {{ e.mood }}{% if e.photo %} <span class="muted" title="Has a photo">&#128247;&#xFE0E;</span>{% endif %}</span>
       <span class="excerpt">{{ e.body[:220] }}{% if e.body|length > 220 %}&hellip;{% endif %}</span>
     </a></li>
     {% endfor %}

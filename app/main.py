@@ -1,3 +1,4 @@
+import calendar
 import hashlib
 import hmac
 import logging
@@ -26,6 +27,8 @@ COOKIE = "rememberry_auth"
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic"}
 PERSON_FIELDS = ("name", "birthday", "children", "met", "work", "notes")
+MOODS = {"😄": "Great", "🙂": "Good", "😐": "Okay", "😕": "Meh", "😢": "Sad", "😠": "Angry", "😴": "Tired", "🤒": "Unwell"}
+NONEMPTY_ENTRY = "(body != '' OR photo != '' OR mood != '')"
 REMINDER_DAYS_AHEAD = int(os.environ.get("REMINDER_DAYS_AHEAD") or 3)
 REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR") or 9)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
@@ -63,6 +66,7 @@ async def require_password(request: Request, call_next):
 
 def render(request: Request, name: str, **ctx):
     ctx.setdefault("nav", "")
+    ctx.setdefault("moods", MOODS)
     return templates.TemplateResponse(request, name, {"auth_enabled": bool(PASSWORD), **ctx})
 
 
@@ -275,10 +279,12 @@ def home(request: Request):
     t = today()
     with db.connect() as conn:
         recent = conn.execute(
-            "SELECT day, body FROM journal WHERE day < ? AND body != '' ORDER BY day DESC LIMIT 5", (t.isoformat(),)
+            f"SELECT day, body, mood FROM journal WHERE day < ? AND {NONEMPTY_ENTRY} ORDER BY day DESC LIMIT 5",
+            (t.isoformat(),),
         ).fetchall()
         on_this_day = conn.execute(
-            "SELECT day, body FROM journal WHERE substr(day, 6) = ? AND day < ? AND body != '' ORDER BY day DESC",
+            f"SELECT day, body, mood, photo FROM journal WHERE substr(day, 6) = ? AND day < ? AND {NONEMPTY_ENTRY} "
+            "ORDER BY day DESC",
             (t.isoformat()[5:], t.isoformat()),
         ).fetchall()
     return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent, on_this_day=on_this_day,
@@ -290,7 +296,7 @@ def home(request: Request):
 def journal_list(request: Request, q: str = "", page: int = 1):
     per_page = 30
     page = max(page, 1)
-    sql = "SELECT day, body FROM journal WHERE body != ''"
+    sql = f"SELECT day, body, mood, photo FROM journal WHERE {NONEMPTY_ENTRY}"
     args: list = []
     if q:
         sql += " AND body LIKE ?"
@@ -308,6 +314,31 @@ def journal_go(day: str = ""):
     return redirect(f"/journal/{parse_day(day).isoformat()}")
 
 
+@app.get("/journal/calendar")
+def journal_calendar(request: Request, month: str = ""):
+    t = today()
+    try:
+        first = date.fromisoformat(month + "-01") if month else t.replace(day=1)
+    except ValueError:
+        raise HTTPException(404)
+    weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(first.year, first.month)
+    with db.connect() as conn:
+        rows = conn.execute(
+            f"SELECT day, mood, photo, body != '' AS has_text FROM journal WHERE day BETWEEN ? AND ? AND {NONEMPTY_ENTRY}",
+            (weeks[0][0].isoformat(), weeks[-1][-1].isoformat()),
+        ).fetchall()
+    entries = {r["day"]: r for r in rows}
+    prev_month = (first - timedelta(days=1)).replace(day=1)
+    next_month = (first + timedelta(days=32)).replace(day=1)
+    counts: dict[str, int] = {}
+    for r in rows:
+        if r["mood"] and r["day"][:7] == first.isoformat()[:7]:
+            counts[r["mood"]] = counts.get(r["mood"], 0) + 1
+    return render(request, "journal_calendar.html", nav="journal", first=first, weeks=weeks, entries=entries,
+                  today=t, prev_month=prev_month, next_month=next_month if next_month <= t else None,
+                  mood_counts=sorted(counts.items(), key=lambda kv: -kv[1]))
+
+
 @app.get("/journal/{day}")
 def journal_day(request: Request, day: str):
     d = parse_day(day)
@@ -321,13 +352,23 @@ def journal_day(request: Request, day: str):
 
 
 @app.post("/journal/{day}")
-def journal_save(day: str, body: str = Form("")):
+async def journal_save(
+    day: str, body: str = Form(""), mood: str = Form(""), photo: UploadFile | None = File(None),
+    remove_photo: str = Form(""),
+):
     d = parse_day(day)
+    existing = get_entry(d)
+    photo_name = existing["photo"] if existing else ""
+    new_photo = await save_photo(photo)
+    if new_photo or remove_photo:
+        delete_photo(photo_name)
+        photo_name = new_photo or ""
     with db.connect() as conn:
         conn.execute(
-            "INSERT INTO journal (day, body, updated_at) VALUES (?, ?, datetime('now')) "
-            "ON CONFLICT(day) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at",
-            (d.isoformat(), body.strip()),
+            "INSERT INTO journal (day, body, mood, photo, updated_at) VALUES (?, ?, ?, ?, datetime('now')) "
+            "ON CONFLICT(day) DO UPDATE SET body = excluded.body, mood = excluded.mood, photo = excluded.photo, "
+            "updated_at = excluded.updated_at",
+            (d.isoformat(), body.strip(), mood if mood in MOODS else "", photo_name),
         )
         index_day_mentions(conn, d.isoformat(), body)
     return redirect("/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1")

@@ -14,6 +14,26 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro entry_extras(entry, moods) -%}
+{% set current = entry.mood if entry else "" %}
+<fieldset class="moods">
+  <legend class="muted small">Mood</legend>
+  <label title="No mood"><input type="radio" name="mood" value="" {{ "checked" if not current }}><span class="none">&ndash;</span></label>
+  {% for emoji, label in moods.items() %}
+  <label title="{{ label }}"><input type="radio" name="mood" value="{{ emoji }}" {{ "checked" if current == emoji }}><span>{{ emoji }}</span></label>
+  {% endfor %}
+</fieldset>
+<div class="entry-photo">
+  {% if entry and entry.photo %}
+  <a href="/photos/{{ entry.photo }}" target="_blank"><img src="/photos/{{ entry.photo }}" alt="Photo for this day"></a>
+  <span class="check"><input type="checkbox" name="remove_photo" value="1"> Remove photo</span>
+  {% endif %}
+  <label class="file-btn">{{ "Replace photo" if entry and entry.photo else "Add a photo" }}
+    <input type="file" name="photo" accept="image/*">
+  </label>
+</div>
+{%- endmacro %}
+
 {% macro when(in_days) -%}
 {% if in_days == 0 %}today{% elif in_days == 1 %}tomorrow{% else %}in {{ in_days }} days{% endif %}
 {%- endmacro %}

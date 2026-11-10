@@ -70,6 +70,10 @@ MIGRATIONS = [
     );
     CREATE INDEX person_tags_tag ON person_tags (tag_id);
     """,
+    """
+    ALTER TABLE journal ADD COLUMN photo TEXT NOT NULL DEFAULT '';
+    ALTER TABLE journal ADD COLUMN mood TEXT NOT NULL DEFAULT '';
+    """,
 ]
 
 
