@@ -421,8 +421,11 @@ def person_view(request: Request, person_id: int):
             "SELECT j.day, j.body FROM mentions m JOIN journal j ON j.day = m.day "
             "WHERE m.person_id = ? ORDER BY j.day DESC", (person_id,)
         ).fetchall()
+        notes = conn.execute(
+            "SELECT id, day, body FROM person_notes WHERE person_id = ? ORDER BY day DESC, id DESC", (person_id,)
+        ).fetchall()
     return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
-                  mentions=mentions)
+                  mentions=mentions, quick_notes=notes, today=today())
 
 
 @app.get("/people/{person_id}/edit")
@@ -461,5 +464,24 @@ def person_delete(person_id: int):
     delete_photo(person["photo"])
     with db.connect() as conn:
         conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
+        conn.execute("DELETE FROM person_notes WHERE person_id = ?", (person_id,))
         reindex_mentions(conn)
     return redirect("/people")
+
+
+@app.post("/people/{person_id}/notes")
+def person_note_add(person_id: int, body: str = Form(""), day: str = Form("")):
+    get_person(person_id)
+    if body.strip():
+        d = parse_day(day) if day else today()
+        with db.connect() as conn:
+            conn.execute("INSERT INTO person_notes (person_id, day, body) VALUES (?, ?, ?)",
+                         (person_id, d.isoformat(), body.strip()))
+    return redirect(f"/people/{person_id}#quick-notes")
+
+
+@app.post("/people/{person_id}/notes/{note_id}/delete")
+def person_note_delete(person_id: int, note_id: int):
+    with db.connect() as conn:
+        conn.execute("DELETE FROM person_notes WHERE id = ? AND person_id = ?", (note_id, person_id))
+    return redirect(f"/people/{person_id}#quick-notes")

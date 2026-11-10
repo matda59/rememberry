@@ -48,6 +48,16 @@ MIGRATIONS = [
         value TEXT NOT NULL DEFAULT ''
     );
     """,
+    """
+    CREATE TABLE person_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_id INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX person_notes_person ON person_notes (person_id, day);
+    """,
 ]
 
 

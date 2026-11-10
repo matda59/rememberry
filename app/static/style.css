@@ -170,3 +170,16 @@ table.channels { width: 100%; border-collapse: collapse; margin-top: .6rem; }
 ul.results { list-style: none; padding: .6rem .9rem; margin: .8rem 0; background: var(--bg); border-radius: 10px; }
 ul.results .ok { color: var(--ok); }
 nav a.icon { font-size: 1.05rem; line-height: 1; }
+
+.quick-note { display: flex; gap: .5rem; margin-bottom: .6rem; }
+.quick-note input[name=body] { flex: 1; }
+ul.quick-notes { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+ul.quick-notes li { display: flex; gap: .8rem; align-items: baseline; padding: .5rem 0; }
+ul.quick-notes li + li { border-top: 1px solid var(--line); }
+.quick-notes .date { font-weight: 700; font-size: .85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.danger-link { color: var(--muted); font-size: 1.2rem; padding: 0 .3rem; }
+.danger-link:hover { color: var(--danger); }
+@media (max-width: 560px) {
+  .quick-note { flex-wrap: wrap; }
+  .quick-note input[name=body] { flex-basis: 100%; order: -1; }
+}
