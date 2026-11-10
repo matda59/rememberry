@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, when %}
+{% block title %}{{ person.name }} · Rememberry{% endblock %}
+{% block content %}
+<section class="card person">
+  <div class="person-head">
+    {{ avatar(person, "lg") }}
+    <div class="grow">
+      <h1>{{ person.name }}</h1>
+      {% if person.work %}<p class="muted">{{ person.work }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    <a class="btn" href="/people/{{ person.id }}/edit">Edit</a>
+    <a class="btn" href="/people">Back</a>
+  </div>
+  <dl class="fields">
+    {% if person.birthday %}
+    <dt>Birthday</dt>
+    <dd>{{ person.birthday }}
+      {% if birthday_info %}<span class="muted">&middot; {{ when(birthday_info.in_days) }}{% if birthday_info.turning %}, turning {{ birthday_info.turning }}{% endif %}</span>{% endif %}
+    </dd>
+    {% endif %}
+    {% if person.children %}<dt>Children</dt><dd class="pre">{{ person.children }}</dd>{% endif %}
+    {% if person.met %}<dt>How we met</dt><dd class="pre">{{ person.met }}</dd>{% endif %}
+    {% if person.work %}<dt>Work</dt><dd class="pre">{{ person.work }}</dd>{% endif %}
+  </dl>
+  {% if person.notes %}
+  <h2>Notes</h2>
+  <div class="notes pre">{{ person.notes }}</div>
+  {% endif %}
+  <p class="muted small">Added {{ person.created_at[:10] }} &middot; updated {{ person.updated_at[:10] }}</p>
+</section>
+{% endblock %}

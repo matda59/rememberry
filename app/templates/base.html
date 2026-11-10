@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7a2e4a">
+  <title>{% block title %}Rememberry{% endblock %}</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="26" height="26"><span>Rememberry</span></a>
+    {% if nav != "login" %}
+    <nav>
+      <a href="/" class="{{ 'active' if nav == 'today' }}">Today</a>
+      <a href="/journal" class="{{ 'active' if nav == 'journal' }}">Journal</a>
+      <a href="/people" class="{{ 'active' if nav == 'people' }}">People</a>
+      {% if auth_enabled %}
+      <form method="post" action="/logout" class="inline"><button class="link" title="Log out">Log out</button></form>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

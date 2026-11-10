@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}{{ "Edit " ~ person.name if person else "Add person" }} · Rememberry{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{{ "Edit " ~ person.name if person else "Add a person" }}</h1>
+  <form method="post" action="{{ '/people/%d' % person.id if person else '/people' }}" enctype="multipart/form-data" class="stack">
+    <label>Name
+      <input name="name" required value="{{ person.name if person else '' }}" {% if not person %}autofocus{% endif %}>
+    </label>
+    <label>Photo
+      <span class="photo-field">
+        {% if person and person.photo %}{{ avatar(person) }}{% endif %}
+        <input type="file" name="photo" accept="image/*">
+      </span>
+      {% if person and person.photo %}
+      <span class="check"><input type="checkbox" name="remove_photo" value="1"> Remove current photo</span>
+      {% endif %}
+    </label>
+    <label>Birthday
+      <input name="birthday" value="{{ person.birthday if person else '' }}" placeholder="1985-04-12, or 04-12 if year unknown">
+      <span class="hint">Use YYYY-MM-DD or MM-DD to show up in upcoming birthdays. Anything else is kept as plain text.</span>
+    </label>
+    <label>Children
+      <textarea name="children" rows="2" placeholder="Names, ages…">{{ person.children if person else '' }}</textarea>
+    </label>
+    <label>When / where we met
+      <textarea name="met" rows="2">{{ person.met if person else '' }}</textarea>
+    </label>
+    <label>Job / work
+      <textarea name="work" rows="2">{{ person.work if person else '' }}</textarea>
+    </label>
+    <label>Notes
+      <textarea name="notes" rows="10" placeholder="Anything worth remembering: interests, partner, pets, last conversation…">{{ person.notes if person else '' }}</textarea>
+    </label>
+    <div class="actions">
+      <button class="primary">Save</button>
+      <a class="btn" href="{{ '/people/%d' % person.id if person else '/people' }}">Cancel</a>
+    </div>
+  </form>
+  {% if person %}
+  <form method="post" action="/people/{{ person.id }}/delete" class="danger-zone" onsubmit="return confirm('Delete this person and their photo? This cannot be undone.')">
+    <button class="danger">Delete person</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

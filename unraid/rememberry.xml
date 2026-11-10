@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>rememberry</Name>
+  <Repository>rememberry:latest</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/matda59/rememberry</Support>
+  <Project>https://github.com/matda59/rememberry</Project>
+  <Overview>Rememberry: a small personal app for people dossiers (photo, birthday, kids, how you met, work, notes) and a one-paragraph-a-day journal. SQLite and photo uploads live in /data.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/matda59/rememberry/main/app/static/icon.svg</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web UI port" Target="8080" Default="8080" Mode="tcp" Description="Port for the web interface." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/rememberry" Mode="rw" Description="Database (rememberry.db) and uploaded photos (uploads/). Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/rememberry</Config>
+  <Config Name="Password" Target="APP_PASSWORD" Default="" Mode="" Description="Optional. If set, the app asks for this password. Leave empty for no login." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Timezone" Target="TZ" Default="UTC" Mode="" Description="Decides what 'today' is for the journal, e.g. Australia/Sydney." Type="Variable" Display="always" Required="false" Mask="false">UTC</Config>
+  <Config Name="Secret key" Target="SECRET_KEY" Default="" Mode="" Description="Optional. Random string used to sign the login cookie. Defaults to a value derived from the password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+</Container>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Journal · Rememberry{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Journal</h1>
+  <form method="get" action="/journal/go" class="row">
+    <input type="date" name="day" value="{{ today.isoformat() }}" max="{{ today.isoformat() }}" required>
+    <button>Go</button>
+  </form>
+</div>
+<form method="get" action="/journal" class="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search entries&hellip;">
+</form>
+<section class="card">
+  {% if entries %}
+  <ul class="entries">
+    {% for e in entries %}
+    <li><a href="/journal/{{ e.day }}">
+      <span class="date">{{ e.day }}</span>
+      <span class="excerpt">{{ e.body[:220] }}{% if e.body|length > 220 %}&hellip;{% endif %}</span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% if q %}No entries match &ldquo;{{ q }}&rdquo;.{% else %}No entries yet. <a href="/">Write today's</a>.{% endif %}</p>
+  {% endif %}
+</section>
+<div class="pager">
+  {% if page > 1 %}<a href="?q={{ q|urlencode }}&page={{ page - 1 }}">&larr; Newer</a>{% else %}<span></span>{% endif %}
+  {% if has_more %}<a href="?q={{ q|urlencode }}&page={{ page + 1 }}">Older &rarr;</a>{% endif %}
+</div>
+{% endblock %}

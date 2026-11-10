@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import birthday_list %}
+{% block content %}
+<section class="card today">
+  <div class="card-head">
+    <div>
+      <p class="eyebrow">Today</p>
+      <h1>{{ day.strftime("%A, %d %B %Y") }}</h1>
+    </div>
+    {% if saved %}<span class="pill ok">Saved</span>{% endif %}
+  </div>
+  <form method="post" action="/journal/{{ day.isoformat() }}">
+    <textarea name="body" rows="8" placeholder="What did you do today? How did you feel?" autofocus>{{ entry.body if entry else "" }}</textarea>
+    <div class="actions">
+      <button class="primary">Save entry</button>
+      {% if entry and entry.body %}<span class="muted small">Last saved {{ entry.updated_at }} UTC</span>{% endif %}
+    </div>
+  </form>
+</section>
+
+{{ birthday_list(birthdays) }}
+
+<section class="card">
+  <div class="card-head">
+    <h2>Recent days</h2>
+    <a href="/journal" class="small">All entries &rarr;</a>
+  </div>
+  {% if recent %}
+  <ul class="entries">
+    {% for e in recent %}
+    <li><a href="/journal/{{ e.day }}">
+      <span class="date">{{ e.day }}</span>
+      <span class="excerpt">{{ e.body[:160] }}{% if e.body|length > 160 %}&hellip;{% endif %}</span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No past entries yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar, birthday_list %}
+{% block title %}People · Rememberry{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>People</h1>
+  <a class="btn primary" href="/people/new">+ Add person</a>
+</div>
+<form method="get" action="/people" class="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search names, work, notes&hellip;">
+</form>
+{% if not q and birthdays %}{{ birthday_list(birthdays) }}{% endif %}
+<section class="card">
+  {% if people %}
+  <ul class="people">
+    {% for p in people %}
+    <li><a href="/people/{{ p.id }}">
+      {{ avatar(p) }}
+      <span class="grow">
+        <strong>{{ p.name }}</strong>
+        {% if p.work %}<span class="muted small block">{{ p.work[:80] }}</span>{% endif %}
+      </span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{% if q %}Nobody matches &ldquo;{{ q }}&rdquo;.{% else %}No people yet. <a href="/people/new">Add someone</a>.{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}
