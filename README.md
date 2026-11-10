@@ -3,7 +3,7 @@
 A small, self-hosted personal app with two things in it:
 
 - **People**: a dossier per person with a photo, birthday, children, when/where you met, job/work and a big free-text notes field. List, search across every field, and see birthdays coming up in the next 30 days.
-- **Journal**: one short entry per day. Today's entry is on the home page; browse, search and edit past days.
+- **Journal**: one short entry per day. Today's entry is on the home page, with **On this day** entries from the same date in previous years; browse, search and edit past days.
 - **@mentions**: type `@` in a journal entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
 
 Single user, one container, one port, everything stored in `/data`.

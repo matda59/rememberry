@@ -19,6 +19,21 @@
   {{ mention_chips(mentioned) }}
 </section>
 
+{% if on_this_day %}
+<section class="card">
+  <h2>On this day</h2>
+  <ul class="entries">
+    {% for e in on_this_day %}
+    {% set years = day.year - e.day[:4]|int %}
+    <li><a href="/journal/{{ e.day }}">
+      <span class="date">{{ years }} year{{ "s" if years != 1 }} ago &middot; {{ e.day[:4] }}</span>
+      <span class="excerpt">{{ e.body[:240] }}{% if e.body|length > 240 %}&hellip;{% endif %}</span>
+    </a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {{ birthday_list(birthdays) }}
 
 <section class="card">

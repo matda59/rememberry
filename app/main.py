@@ -219,7 +219,11 @@ def home(request: Request):
         recent = conn.execute(
             "SELECT day, body FROM journal WHERE day < ? AND body != '' ORDER BY day DESC LIMIT 5", (t.isoformat(),)
         ).fetchall()
-    return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent,
+        on_this_day = conn.execute(
+            "SELECT day, body FROM journal WHERE substr(day, 6) = ? AND day < ? AND body != '' ORDER BY day DESC",
+            (t.isoformat()[5:], t.isoformat()),
+        ).fetchall()
+    return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent, on_this_day=on_this_day,
                   birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
                   saved=request.query_params.get("saved"))
 
