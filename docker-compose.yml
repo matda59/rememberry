@@ -1,0 +1,14 @@
+services:
+  rememberry:
+    build: .
+    image: rememberry:latest
+    container_name: rememberry
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: "UTC"  # e.g. Australia/Sydney; decides what "today" is
+      # Leave empty to disable the login screen.
+      APP_PASSWORD: ""

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ day.isoformat() }} · Rememberry{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="card-head">
+    <a class="btn" href="/journal/{{ prev_day.isoformat() }}" title="Previous day">&larr;</a>
+    <div class="center">
+      <p class="eyebrow">Journal</p>
+      <h1>{{ day.strftime("%A, %d %B %Y") }}</h1>
+    </div>
+    {% if next_day <= today %}
+    <a class="btn" href="/journal/{{ next_day.isoformat() }}" title="Next day">&rarr;</a>
+    {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
+  </div>
+  <form method="post" action="/journal/{{ day.isoformat() }}">
+    <textarea name="body" rows="10" placeholder="Nothing written for this day.">{{ entry.body if entry else "" }}</textarea>
+    <div class="actions">
+      <button class="primary">Save</button>
+      {% if saved %}<span class="pill ok">Saved</span>{% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

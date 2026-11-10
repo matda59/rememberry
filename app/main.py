@@ -1,0 +1,332 @@
+import hashlib
+import hmac
+import os
+import re
+import secrets
+import uuid
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from . import db
+
+BASE = Path(__file__).parent
+PASSWORD = os.environ.get("APP_PASSWORD", "")
+SECRET = os.environ.get("SECRET_KEY") or hashlib.sha256(("rememberry:" + PASSWORD).encode()).hexdigest()
+TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
+COOKIE = "rememberry_auth"
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic"}
+PERSON_FIELDS = ("name", "birthday", "children", "met", "work", "notes")
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
+templates = Jinja2Templates(directory=BASE / "templates")
+
+
+@app.on_event("startup")
+def startup():
+    db.init()
+
+
+def today() -> date:
+    return datetime.now(TZ).date()
+
+
+def auth_token() -> str:
+    return hmac.new(SECRET.encode(), b"ok", hashlib.sha256).hexdigest()
+
+
+@app.middleware("http")
+async def require_password(request: Request, call_next):
+    open_paths = ("/login", "/static/", "/healthz")
+    if PASSWORD and not request.url.path.startswith(open_paths):
+        if not hmac.compare_digest(request.cookies.get(COOKIE, ""), auth_token()):
+            return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+def render(request: Request, name: str, **ctx):
+    ctx.setdefault("nav", "")
+    return templates.TemplateResponse(request, name, {"auth_enabled": bool(PASSWORD), **ctx})
+
+
+def redirect(url: str):
+    return RedirectResponse(url, status_code=303)
+
+
+# ---------- auth ----------
+
+@app.get("/login")
+def login_form(request: Request):
+    if not PASSWORD:
+        return redirect("/")
+    return render(request, "login.html", nav="login", error=False)
+
+
+@app.post("/login")
+def login(request: Request, password: str = Form("")):
+    if PASSWORD and secrets.compare_digest(password.encode(), PASSWORD.encode()):
+        resp = redirect("/")
+        resp.set_cookie(COOKIE, auth_token(), max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
+        return resp
+    return render(request, "login.html", nav="login", error=True)
+
+
+@app.post("/logout")
+def logout():
+    resp = redirect("/login")
+    resp.delete_cookie(COOKIE)
+    return resp
+
+
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
+
+# ---------- birthdays ----------
+
+BIRTHDAY_RE = re.compile(r"^\s*(?:(\d{4})-)?(\d{1,2})-(\d{1,2})\s*$")
+
+
+def parse_birthday(text: str):
+    """Returns (year or None, month, day) for 'YYYY-MM-DD' or 'MM-DD', else None."""
+    m = BIRTHDAY_RE.match(text or "")
+    if not m:
+        return None
+    year = int(m.group(1)) if m.group(1) else None
+    month, day = int(m.group(2)), int(m.group(3))
+    try:
+        date(2000, month, day)
+    except ValueError:
+        return None
+    return year, month, day
+
+
+def next_occurrence(month: int, day: int, ref: date) -> date:
+    for year in (ref.year, ref.year + 1):
+        try:
+            d = date(year, month, day)
+        except ValueError:
+            d = date(year, 2, 28)
+        if d >= ref:
+            return d
+    raise AssertionError
+
+
+def upcoming_birthdays(days: int = 30):
+    ref = today()
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, name, birthday, photo FROM people WHERE birthday != ''").fetchall()
+    result = []
+    for row in rows:
+        parsed = parse_birthday(row["birthday"])
+        if not parsed:
+            continue
+        year, month, day = parsed
+        nxt = next_occurrence(month, day, ref)
+        delta = (nxt - ref).days
+        if delta <= days:
+            result.append({
+                "id": row["id"], "name": row["name"], "photo": row["photo"], "date": nxt,
+                "in_days": delta, "turning": (nxt.year - year) if year else None,
+            })
+    return sorted(result, key=lambda r: r["in_days"])
+
+
+# ---------- journal ----------
+
+def parse_day(day: str) -> date:
+    try:
+        return date.fromisoformat(day)
+    except ValueError:
+        raise HTTPException(404)
+
+
+def get_entry(day: date):
+    with db.connect() as conn:
+        return conn.execute("SELECT * FROM journal WHERE day = ?", (day.isoformat(),)).fetchone()
+
+
+@app.get("/")
+def home(request: Request):
+    t = today()
+    with db.connect() as conn:
+        recent = conn.execute(
+            "SELECT day, body FROM journal WHERE day < ? AND body != '' ORDER BY day DESC LIMIT 5", (t.isoformat(),)
+        ).fetchall()
+    return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent,
+                  birthdays=upcoming_birthdays(), saved=request.query_params.get("saved"))
+
+
+@app.get("/journal")
+def journal_list(request: Request, q: str = "", page: int = 1):
+    per_page = 30
+    page = max(page, 1)
+    sql = "SELECT day, body FROM journal WHERE body != ''"
+    args: list = []
+    if q:
+        sql += " AND body LIKE ?"
+        args.append(f"%{q}%")
+    sql += " ORDER BY day DESC LIMIT ? OFFSET ?"
+    args += [per_page + 1, (page - 1) * per_page]
+    with db.connect() as conn:
+        rows = conn.execute(sql, args).fetchall()
+    return render(request, "journal_list.html", nav="journal", entries=rows[:per_page], q=q, page=page,
+                  has_more=len(rows) > per_page, today=today())
+
+
+@app.get("/journal/go")
+def journal_go(day: str = ""):
+    return redirect(f"/journal/{parse_day(day).isoformat()}")
+
+
+@app.get("/journal/{day}")
+def journal_day(request: Request, day: str):
+    d = parse_day(day)
+    t = today()
+    if d == t:
+        return redirect("/")
+    return render(request, "journal_day.html", nav="journal", day=d, entry=get_entry(d), today=t,
+                  prev_day=d - timedelta(days=1), next_day=d + timedelta(days=1),
+                  saved=request.query_params.get("saved"))
+
+
+@app.post("/journal/{day}")
+def journal_save(day: str, body: str = Form("")):
+    d = parse_day(day)
+    with db.connect() as conn:
+        conn.execute(
+            "INSERT INTO journal (day, body, updated_at) VALUES (?, ?, datetime('now')) "
+            "ON CONFLICT(day) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at",
+            (d.isoformat(), body.strip()),
+        )
+    return redirect("/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1")
+
+
+# ---------- people ----------
+
+def get_person(person_id: int):
+    with db.connect() as conn:
+        row = conn.execute("SELECT * FROM people WHERE id = ?", (person_id,)).fetchone()
+    if not row:
+        raise HTTPException(404)
+    return row
+
+
+async def save_photo(photo: UploadFile | None) -> str | None:
+    if not photo or not photo.filename:
+        return None
+    ext = PHOTO_TYPES.get(photo.content_type or "")
+    if not ext:
+        raise HTTPException(400, "Photo must be a JPEG, PNG, WebP, GIF or HEIC image.")
+    data = await photo.read(MAX_PHOTO_BYTES + 1)
+    if len(data) > MAX_PHOTO_BYTES:
+        raise HTTPException(400, "Photo is larger than 10 MB.")
+    name = uuid.uuid4().hex + ext
+    (db.UPLOAD_DIR / name).write_bytes(data)
+    return name
+
+
+def delete_photo(name: str):
+    if name:
+        (db.UPLOAD_DIR / Path(name).name).unlink(missing_ok=True)
+
+
+@app.get("/photos/{name}")
+def photo(name: str):
+    path = db.UPLOAD_DIR / Path(name).name
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, headers={"Cache-Control": "private, max-age=31536000, immutable"})
+
+
+@app.get("/people")
+def people_list(request: Request, q: str = ""):
+    sql = "SELECT id, name, work, birthday, photo FROM people"
+    args: list = []
+    if q:
+        like = f"%{q}%"
+        sql += " WHERE " + " OR ".join(f"{f} LIKE ?" for f in PERSON_FIELDS)
+        args = [like] * len(PERSON_FIELDS)
+    sql += " ORDER BY name COLLATE NOCASE"
+    with db.connect() as conn:
+        people = conn.execute(sql, args).fetchall()
+    return render(request, "people_list.html", nav="people", people=people, q=q, birthdays=upcoming_birthdays())
+
+
+@app.get("/people/new")
+def person_new(request: Request):
+    return render(request, "person_form.html", nav="people", person=None)
+
+
+@app.post("/people")
+async def person_create(
+    name: str = Form(...), birthday: str = Form(""), children: str = Form(""), met: str = Form(""),
+    work: str = Form(""), notes: str = Form(""), photo: UploadFile | None = File(None),
+):
+    if not name.strip():
+        raise HTTPException(400, "Name is required.")
+    photo_name = await save_photo(photo) or ""
+    with db.connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO people (name, birthday, children, met, work, notes, photo) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(), photo_name),
+        )
+        new_id = cur.lastrowid
+    return redirect(f"/people/{new_id}")
+
+
+@app.get("/people/{person_id}")
+def person_view(request: Request, person_id: int):
+    person = get_person(person_id)
+    parsed = parse_birthday(person["birthday"])
+    birthday_info = None
+    if parsed:
+        year, month, day = parsed
+        nxt = next_occurrence(month, day, today())
+        birthday_info = {"next": nxt, "in_days": (nxt - today()).days, "turning": (nxt.year - year) if year else None}
+    return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info)
+
+
+@app.get("/people/{person_id}/edit")
+def person_edit(request: Request, person_id: int):
+    return render(request, "person_form.html", nav="people", person=get_person(person_id))
+
+
+@app.post("/people/{person_id}")
+async def person_update(
+    person_id: int, name: str = Form(...), birthday: str = Form(""), children: str = Form(""), met: str = Form(""),
+    work: str = Form(""), notes: str = Form(""), photo: UploadFile | None = File(None), remove_photo: str = Form(""),
+):
+    person = get_person(person_id)
+    if not name.strip():
+        raise HTTPException(400, "Name is required.")
+    photo_name = person["photo"]
+    new_photo = await save_photo(photo)
+    if new_photo or remove_photo:
+        delete_photo(photo_name)
+        photo_name = new_photo or ""
+    with db.connect() as conn:
+        conn.execute(
+            "UPDATE people SET name=?, birthday=?, children=?, met=?, work=?, notes=?, photo=?, "
+            "updated_at=datetime('now') WHERE id=?",
+            (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(),
+             photo_name, person_id),
+        )
+    return redirect(f"/people/{person_id}")
+
+
+@app.post("/people/{person_id}/delete")
+def person_delete(person_id: int):
+    person = get_person(person_id)
+    delete_photo(person["photo"])
+    with db.connect() as conn:
+        conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
+    return redirect("/people")
