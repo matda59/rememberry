@@ -550,12 +550,40 @@ def get_entry(day: date):
         return conn.execute("SELECT * FROM journal WHERE day = ?", (day.isoformat(),)).fetchone()
 
 
+def month_grid(conn, first: date):
+    """Weeks (Mon-Sun) covering the month, and the non-empty entries in them keyed by ISO day."""
+    weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(first.year, first.month)
+    rows = conn.execute(
+        f"SELECT day, mood, photo, body != '' AS has_text FROM journal WHERE day BETWEEN ? AND ? AND {NONEMPTY_ENTRY}",
+        (weeks[0][0].isoformat(), weeks[-1][-1].isoformat()),
+    ).fetchall()
+    return weeks, {r["day"]: r for r in rows}
+
+
+def writing_streak(conn, t: date) -> int:
+    """Consecutive days with an entry, ending today (or yesterday, so the streak survives until you write)."""
+    days = {r["day"] for r in conn.execute(f"SELECT day FROM journal WHERE day <= ? AND {NONEMPTY_ENTRY}",
+                                           (t.isoformat(),))}
+    d = t if t.isoformat() in days else t - timedelta(days=1)
+    streak = 0
+    while d.isoformat() in days:
+        streak += 1
+        d -= timedelta(days=1)
+    return streak
+
+
+def greeting() -> str:
+    hour = datetime.now(TZ).hour
+    return "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
+
+
 @app.get("/")
 def home(request: Request):
     t = today()
+    first = t.replace(day=1)
     with db.connect() as conn:
         recent = conn.execute(
-            f"SELECT day, body, mood FROM journal WHERE day < ? AND {NONEMPTY_ENTRY} ORDER BY day DESC LIMIT 5",
+            f"SELECT day, body, mood FROM journal WHERE day < ? AND {NONEMPTY_ENTRY} ORDER BY day DESC LIMIT 3",
             (t.isoformat(),),
         ).fetchall()
         on_this_day = conn.execute(
@@ -563,8 +591,22 @@ def home(request: Request):
             "ORDER BY day DESC",
             (t.isoformat()[5:], t.isoformat()),
         ).fetchall()
-    return render(request, "home.html", nav="home", day=t, entry=get_entry(t), recent=recent, on_this_day=on_this_day,
-                  birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
+        recent_people = conn.execute(
+            "SELECT id, name, photo, work, created_at, updated_at FROM people ORDER BY updated_at DESC, id DESC LIMIT 5"
+        ).fetchall()
+        weeks, month_entries = month_grid(conn, first)
+        stats = {
+            "streak": writing_streak(conn, t),
+            "month": sum(1 for d in month_entries if d[:7] == first.isoformat()[:7]),
+            "entries": conn.execute(f"SELECT count(*) FROM journal WHERE {NONEMPTY_ENTRY}").fetchone()[0],
+            "people": conn.execute("SELECT count(*) FROM people").fetchone()[0],
+        }
+    entry = get_entry(t)
+    written = bool(entry and (entry["body"] or entry["mood"] or entry["photo"]))
+    return render(request, "home.html", nav="home", day=t, entry=entry, written=written, recent=recent,
+                  on_this_day=on_this_day, birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
+                  recent_people=recent_people, weeks=weeks, month_entries=month_entries, first=first, stats=stats,
+                  greeting=greeting(), editing=bool(request.query_params.get("edit")),
                   saved=request.query_params.get("saved"))
 
 
@@ -597,13 +639,9 @@ def journal_calendar(request: Request, month: str = ""):
         first = date.fromisoformat(month + "-01") if month else t.replace(day=1)
     except ValueError:
         raise HTTPException(404)
-    weeks = calendar.Calendar(firstweekday=0).monthdatescalendar(first.year, first.month)
     with db.connect() as conn:
-        rows = conn.execute(
-            f"SELECT day, mood, photo, body != '' AS has_text FROM journal WHERE day BETWEEN ? AND ? AND {NONEMPTY_ENTRY}",
-            (weeks[0][0].isoformat(), weeks[-1][-1].isoformat()),
-        ).fetchall()
-    entries = {r["day"]: r for r in rows}
+        weeks, entries = month_grid(conn, first)
+    rows = entries.values()
     prev_month = (first - timedelta(days=1)).replace(day=1)
     next_month = (first + timedelta(days=32)).replace(day=1)
     counts: dict[str, int] = {}

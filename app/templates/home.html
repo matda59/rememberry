@@ -1,59 +1,136 @@
 {% extends "base.html" %}
-{% from "_macros.html" import birthday_list, mention_chips, entry_extras %}
+{% from "_macros.html" import avatar, birthday_list, mention_chips, entry_extras %}
+{% block main_class %}wide{% endblock %}
 {% block content %}
-<section class="card today">
-  <div class="card-head">
-    <div>
-      <p class="eyebrow">Today</p>
-      <h1>{{ day.strftime("%A, %d %B %Y") }}</h1>
-    </div>
-    {% if saved %}<span class="pill ok">Saved</span>{% endif %}
+<section class="dash-head">
+  <div>
+    <p class="eyebrow">{{ day.strftime("%A, %d %B %Y") }}</p>
+    <h1>{{ greeting }}{% if current_user %}, {{ current_user.username }}{% endif %}</h1>
   </div>
-  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <textarea name="body" rows="8" placeholder="What did you do today? How did you feel? Type @ to mention someone." autofocus data-mentions>{{ entry.body if entry else "" }}</textarea>
-    {{ entry_extras(entry, moods) }}
-    <div class="actions">
-      <button class="primary">Save entry</button>
-      {% if entry and entry.body %}<span class="muted small">Last saved {{ entry.updated_at }} UTC</span>{% endif %}
-    </div>
-  </form>
-  {{ mention_chips(mentioned) }}
-</section>
-
-{% if on_this_day %}
-<section class="card">
-  <h2>On this day</h2>
-  <ul class="entries">
-    {% for e in on_this_day %}
-    {% set years = day.year - e.day[:4]|int %}
-    <li><a href="/journal/{{ e.day }}">
-      <span class="date">{{ e.mood }} {{ years }} year{{ "s" if years != 1 }} ago &middot; {{ e.day[:4] }}</span>
-      {% if e.photo %}<img class="thumb" src="/photos/{{ e.photo }}" alt="">{% endif %}
-      <span class="excerpt">{{ e.body[:240] }}{% if e.body|length > 240 %}&hellip;{% endif %}</span>
-    </a></li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
-
-{{ birthday_list(birthdays) }}
-
-<section class="card">
-  <div class="card-head">
-    <h2>Recent days</h2>
-    <a href="/journal" class="small">All entries &rarr;</a>
+  <div class="quick-actions">
+    <a class="btn primary" href="{{ '/?edit=1#today' if written else '#today' }}">&#9998;&#xFE0E; {{ "Edit today" if written else "Write today" }}</a>
+    <a class="btn" href="/people/new">+ Add person</a>
   </div>
-  {% if recent %}
-  <ul class="entries">
-    {% for e in recent %}
-    <li><a href="/journal/{{ e.day }}">
-      <span class="date">{{ e.day }} {{ e.mood }}</span>
-      <span class="excerpt">{{ e.body[:160] }}{% if e.body|length > 160 %}&hellip;{% endif %}</span>
-    </a></li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="muted">No past entries yet.</p>
-  {% endif %}
 </section>
+
+<section class="stats" aria-label="Stats">
+  <div class="stat"><span class="stat-num">{{ stats.streak }}</span><span class="stat-label">day streak{% if stats.streak and not written %} &middot; write today to keep it{% endif %}</span></div>
+  <a class="stat" href="/journal/calendar"><span class="stat-num">{{ stats.month }}</span><span class="stat-label">entries in {{ first.strftime("%B") }}</span></a>
+  <a class="stat" href="/journal"><span class="stat-num">{{ stats.entries }}</span><span class="stat-label">journal entries</span></a>
+  <a class="stat" href="/people"><span class="stat-num">{{ stats.people }}</span><span class="stat-label">{{ "person" if stats.people == 1 else "people" }}</span></a>
+</section>
+
+<div class="dash-grid">
+  <div class="dash-col">
+    <section class="card today" id="today">
+      <div class="card-head">
+        <h2>Today's journal</h2>
+        {% if saved %}<span class="pill ok">Saved</span>
+        {% elif written %}<span class="pill ok">Written &#10003;</span>
+        {% else %}<span class="pill todo">Not written yet</span>{% endif %}
+      </div>
+      {% if written and not editing %}
+      <div class="today-preview">
+        {% if entry.mood %}<span class="today-mood" title="{{ moods.get(entry.mood, '') }}">{{ entry.mood }}</span>{% endif %}
+        <div class="grow">
+          {% if entry.body %}<p class="pre">{{ entry.body[:400] }}{% if entry.body|length > 400 %}&hellip;{% endif %}</p>
+          {% else %}<p class="muted">No text yet.</p>{% endif %}
+        </div>
+        {% if entry.photo %}<img class="today-photo" src="/photos/{{ entry.photo }}" alt="Today's photo">{% endif %}
+      </div>
+      {{ mention_chips(mentioned) }}
+      <div class="actions"><a class="btn" href="/?edit=1#today">Edit entry</a><span class="muted small">Last saved {{ entry.updated_at }} UTC</span></div>
+      {% else %}
+      <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <textarea name="body" rows="6" placeholder="What did you do today? How did you feel? Type @ to mention someone." {{ "autofocus" if editing }} data-mentions>{{ entry.body if entry else "" }}</textarea>
+        {{ entry_extras(entry, moods) }}
+        <div class="actions">
+          <button class="primary">Save entry</button>
+          {% if editing %}<a class="btn" href="/">Cancel</a>{% endif %}
+        </div>
+      </form>
+      {% endif %}
+    </section>
+
+    {% if on_this_day %}
+    <section class="card">
+      <h2>On this day</h2>
+      <ul class="entries">
+        {% for e in on_this_day %}
+        {% set years = day.year - e.day[:4]|int %}
+        <li><a href="/journal/{{ e.day }}">
+          <span class="date">{{ e.mood }} {{ years }} year{{ "s" if years != 1 }} ago &middot; {{ e.day[:4] }}</span>
+          {% if e.photo %}<img class="thumb" src="/photos/{{ e.photo }}" alt="">{% endif %}
+          <span class="excerpt">{{ e.body[:240] }}{% if e.body|length > 240 %}&hellip;{% endif %}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Recent days</h2>
+        <a href="/journal" class="small">All entries &rarr;</a>
+      </div>
+      {% if recent %}
+      <ul class="entries">
+        {% for e in recent %}
+        <li><a href="/journal/{{ e.day }}">
+          <span class="date">{{ e.day }} {{ e.mood }}</span>
+          <span class="excerpt">{{ e.body[:160] }}{% if e.body|length > 160 %}&hellip;{% endif %}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">No past entries yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="dash-col">
+    <section class="card">
+      <div class="card-head">
+        <h2>{{ first.strftime("%B") }} moods</h2>
+        <a href="/journal/calendar" class="small">Calendar &rarr;</a>
+      </div>
+      <div class="calendar mini">
+        {% for name in ["M", "T", "W", "T", "F", "S", "S"] %}<div class="dow">{{ name }}</div>{% endfor %}
+        {% for week in weeks %}{% for d in week %}
+        {% set e = month_entries.get(d.isoformat()) %}
+        {% set cls = ["day", "other" if d.month != first.month, "today" if d == day, "has" if e, "future" if d > day]|select|join(" ") %}
+        {% if d > day or d.month != first.month %}
+        <span class="{{ cls }}">{% if d.month == first.month %}<span class="num">{{ d.day }}</span>{% endif %}</span>
+        {% else %}
+        <a class="{{ cls }}" href="{{ '/#today' if d == day else '/journal/' ~ d.isoformat() }}" title="{{ d.strftime('%a %d %b') }}{% if e and e.mood %}: {{ moods[e.mood] }}{% endif %}">
+          {% if e and e.mood %}<span class="mood">{{ e.mood }}</span>{% elif e %}<span class="dot"></span>{% else %}<span class="num">{{ d.day }}</span>{% endif %}
+        </a>
+        {% endif %}
+        {% endfor %}{% endfor %}
+      </div>
+    </section>
+
+    {{ birthday_list(birthdays[:5]) }}
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Recently added &amp; updated people</h2>
+        <a href="/people" class="small">Everyone &rarr;</a>
+      </div>
+      {% if recent_people %}
+      <ul class="people">
+        {% for p in recent_people %}
+        <li><a href="/people/{{ p.id }}">
+          {{ avatar(p, "sm") }}
+          <span class="grow"><strong>{{ p.name }}</strong>{% if p.work %}<span class="muted small block">{{ p.work }}</span>{% endif %}</span>
+          <span class="muted small">{{ "Added" if p.created_at == p.updated_at else "Updated" }} {{ p.updated_at[:10] }}</span>
+        </a></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">No one yet. <a href="/people/new">Add your first person</a>.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
 {% endblock %}

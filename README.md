@@ -6,7 +6,7 @@ A small, self-hosted personal app with two things in it:
   - **Tags**: comma-separated tags/groups on each person (family, work, book club); filter the people list by tag.
   - **Quick notes**: short dated notes on a person ("Started a new job", "Asked about Mia's recital"), newest first, next to the free-text fields.
   - **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
-- **Journal**: one short entry per day. Today's entry is on the home page, with **On this day** entries from the same date in previous years; browse, search and edit past days.
+- **Journal**: one short entry per day. The home page is a dashboard: today's entry (write it, or a preview once written), a mood calendar for the month, streak and counts, upcoming birthdays, recently added or updated people, and quick actions, with **On this day** entries from the same date in previous years; browse, search and edit past days.
   - **@mentions**: type `@` in an entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
   - **Moods and photos**: pick a mood emoji and attach one photo per day. The journal calendar shows each day's mood for the month.
 

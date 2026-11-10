@@ -20,7 +20,7 @@
     {% if nav != "login" %}
     <nav class="tabs" aria-label="Main">
       {% for key, href, label, icon in [
-        ("home", "/", "Today", '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'),
+        ("home", "/", "Home", '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'),
         ("journal", "/journal", "Journal", '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>'),
         ("calendar", "/journal/calendar", "Calendar", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
         ("people", "/people", "People", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>'),
@@ -51,7 +51,7 @@
       {% endif %}
     </nav>
   </header>
-  <main>
+  <main class="{% block main_class %}{% endblock %}">
     {% if legacy_login and nav != "login" %}
     <section class="card notice">
       <strong>Set up your account.</strong> Rememberry now has a proper login with your own username and password.

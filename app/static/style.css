@@ -283,6 +283,36 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
 .tabs { margin-left: auto; }
 .tabs svg { display: none; width: 1.35rem; height: 1.35rem; }
 .tools { gap: .1rem; }
+main.wide { max-width: 1080px; }
+
+.dash-head { display: flex; align-items: flex-end; justify-content: space-between; gap: .75rem 1rem; flex-wrap: wrap; padding: .25rem .1rem 0; }
+.dash-head h1 { font-size: 1.6rem; }
+.quick-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+.stat {
+  display: grid; gap: .1rem; padding: .85rem 1rem; color: var(--text);
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+}
+a.stat:hover { text-decoration: none; border-color: var(--accent); }
+.stat-num { font-size: 1.7rem; font-weight: 750; line-height: 1.1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat-label { font-size: .82rem; color: var(--muted); }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.dash-col { display: grid; gap: 1rem; min-width: 0; }
+.pill.todo { color: var(--muted); background: var(--accent-soft); }
+.today-preview { display: flex; gap: .9rem; align-items: flex-start; }
+.today-mood { font-size: 2rem; line-height: 1; }
+.today-photo { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; flex: none; }
+.today .actions .muted { margin-left: auto; }
+
+.calendar.mini { gap: .25rem; }
+.calendar.mini .dow { font-size: .68rem; }
+.calendar.mini .day { border-radius: 8px; }
+.calendar.mini .num { position: static; font-size: .72rem; }
+.calendar.mini .mood { font-size: 1.15rem; }
+.calendar.mini .other { visibility: hidden; }
+@media (max-width: 860px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
 @media (max-width: 640px) {
   body.has-tabs { padding-bottom: calc(4.2rem + env(safe-area-inset-bottom)); }
   /* backdrop-filter would make the header the containing block of the fixed tab bar. */
@@ -299,4 +329,10 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
   .tabs a.active svg { background: var(--accent-soft); border-radius: 999px; }
   .tabs svg { display: block; width: 2.6rem; height: 1.7rem; padding: .2rem .65rem; }
   .has-tabs .brand img + * { display: inline; }
+  .stats { grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+  .stat { padding: .7rem .85rem; }
+  .stat-num { font-size: 1.45rem; }
+  .dash-head h1 { font-size: 1.3rem; }
+  .quick-actions { width: 100%; }
+  .quick-actions .btn { flex: 1; }
 }
