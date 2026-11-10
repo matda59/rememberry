@@ -9,6 +9,7 @@ A small, self-hosted personal app with two things in it:
 - **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
 - **Moods and photos**: pick a mood emoji and attach one photo per journal day. The journal calendar shows each day's mood for the month.
 - **Backup and export**: one-click zip of the database and photos, and a Markdown export of the journal, from the settings page.
+- **Installable**: a web app manifest, icons and a service worker let you add it to your phone's home screen (see [Install on your phone](#install-on-your-phone)).
 - **@mentions**: type `@` in a journal entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
 
 Single user, one container, one port, everything stored in `/data`.
@@ -129,6 +130,17 @@ Click **Apply**, then open `http://<unraid-ip>:8080`.
 ### 3. Back up
 
 Include `/mnt/user/appdata/rememberry` in your appdata backup (e.g. the Appdata Backup plugin). It holds the database and all photos.
+
+## Install on your phone
+
+Rememberry is a Progressive Web App, so it can sit on your home screen and open full-screen like a native app. It shows a small "You're offline" page when your server is unreachable; it doesn't keep data on the phone.
+
+**Browsers only offer installing over HTTPS (or on `localhost`).** On a plain `http://192.168.x.x:8080` LAN address you'll get at most a bookmark-style shortcut and no service worker. To install it properly, put it behind a reverse proxy with a certificate, for example SWAG or Nginx Proxy Manager on Unraid, Caddy, or Tailscale Serve (`tailscale serve --bg 8080` gives you `https://<machine>.<tailnet>.ts.net`). Then:
+
+- **Android (Chrome):** open the HTTPS address, menu **⋮ → Install app** (or **Add to Home screen**).
+- **iPhone/iPad (Safari):** open the HTTPS address, **Share → Add to Home Screen**.
+
+If you use `APP_PASSWORD`, you'll log in once inside the installed app.
 
 ## Security notes
 

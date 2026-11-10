@@ -61,7 +61,7 @@ def auth_token() -> str:
 
 @app.middleware("http")
 async def require_password(request: Request, call_next):
-    open_paths = ("/login", "/static/", "/healthz")
+    open_paths = ("/login", "/static/", "/healthz", "/manifest.webmanifest", "/sw.js")
     if PASSWORD and not request.url.path.startswith(open_paths):
         if not hmac.compare_digest(request.cookies.get(COOKIE, ""), auth_token()):
             return RedirectResponse("/login", status_code=303)
@@ -101,6 +101,16 @@ def logout():
     resp = redirect("/login")
     resp.delete_cookie(COOKIE)
     return resp
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    return FileResponse(BASE / "static" / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(BASE / "static" / "sw.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/healthz")
