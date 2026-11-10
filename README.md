@@ -12,6 +12,8 @@ A small, self-hosted personal app with two things in it:
 
 Plus a one-click **backup zip** (database + photos) and **Markdown export** of the journal on the settings page, and it's an **installable PWA** for your phone's home screen (see [Install on your phone](#install-on-your-phone)).
 
+**Light / dark mode**: the button next to the gear in the header cycles Light, Dark and Auto (follow your device), and Settings has the same choice. It's remembered per browser in a cookie and applied before the page draws, so there's no flash.
+
 Single user, one container, one port, everything stored in `/data`.
 
 ![Today](docs/today-desktop.png)

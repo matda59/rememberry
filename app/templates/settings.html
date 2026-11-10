@@ -3,7 +3,21 @@
 {% block content %}
 <section class="card">
   <h1>Settings</h1>
-  <p class="muted">Configured with environment variables on the container; see the README.</p>
+  <p class="muted">Reminders are configured with environment variables on the container; see the README.</p>
+</section>
+
+<section class="card">
+  <h2>Appearance</h2>
+  <form method="post" action="/theme" data-theme-picker>
+    <input type="hidden" name="next" value="/settings">
+    <fieldset class="segmented" aria-label="Theme">
+      {% for value, label in [("light", "Light"), ("dark", "Dark"), ("auto", "Auto")] %}
+      <label><input type="radio" name="theme" value="{{ value }}" {{ "checked" if theme == value }}><span>{{ label }}</span></label>
+      {% endfor %}
+    </fieldset>
+    <p class="muted small">Auto follows your device's light or dark setting. Remembered in this browser.</p>
+    <noscript><div class="actions"><button>Save</button></div></noscript>
+  </form>
 </section>
 
 <section class="card">

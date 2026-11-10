@@ -28,6 +28,8 @@ PASSWORD = os.environ.get("APP_PASSWORD", "")
 SECRET = os.environ.get("SECRET_KEY") or hashlib.sha256(("rememberry:" + PASSWORD).encode()).hexdigest()
 TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
 COOKIE = "rememberry_auth"
+THEME_COOKIE = "rememberry_theme"
+THEMES = ("auto", "light", "dark")
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic"}
 PERSON_FIELDS = ("name", "birthday", "children", "met", "work", "notes")
@@ -61,21 +63,43 @@ def auth_token() -> str:
 
 @app.middleware("http")
 async def require_password(request: Request, call_next):
-    open_paths = ("/login", "/static/", "/healthz", "/manifest.webmanifest", "/sw.js")
+    open_paths = ("/login", "/static/", "/healthz", "/manifest.webmanifest", "/sw.js", "/theme")
     if PASSWORD and not request.url.path.startswith(open_paths):
         if not hmac.compare_digest(request.cookies.get(COOKIE, ""), auth_token()):
             return RedirectResponse("/login", status_code=303)
     return await call_next(request)
 
 
+def current_theme(request: Request) -> str:
+    value = request.cookies.get(THEME_COOKIE, "")
+    return value if value in THEMES else "auto"
+
+
 def render(request: Request, name: str, **ctx):
     ctx.setdefault("nav", "")
     ctx.setdefault("moods", MOODS)
-    return templates.TemplateResponse(request, name, {"auth_enabled": bool(PASSWORD), **ctx})
+    return templates.TemplateResponse(request, name, {"auth_enabled": bool(PASSWORD), "theme": current_theme(request),
+                                                      **ctx})
 
 
 def redirect(url: str):
     return RedirectResponse(url, status_code=303)
+
+
+def safe_next(url: str, default: str = "/") -> str:
+    """Only same-site paths, so ?next= can't bounce to another host."""
+    if not url.startswith("/") or url.startswith(("//", "/\\")):
+        return default
+    return url
+
+
+# ---------- theme ----------
+
+@app.post("/theme")
+def set_theme(theme: str = Form("auto"), next: str = Form("/")):
+    resp = redirect(safe_next(next))
+    resp.set_cookie(THEME_COOKIE, theme if theme in THEMES else "auto", max_age=60 * 60 * 24 * 365 * 5, samesite="lax")
+    return resp
 
 
 # ---------- auth ----------

@@ -1,3 +1,4 @@
+/* Theme: data-theme on <html> is "light", "dark" or "auto" (follow the OS). Keep the two dark blocks in sync. */
 :root {
   --bg: #faf7f5;
   --card: #fff;
@@ -6,13 +7,29 @@
   --line: #ece4e8;
   --accent: #7a2e4a;
   --accent-soft: #f6e9ef;
+  --on-accent: #fff;
   --ok: #2f7a4f;
   --danger: #b3261e;
+  --shadow: rgb(0 0 0 / .12);
   --radius: 14px;
-  color-scheme: light dark;
+  color-scheme: light;
+}
+:root[data-theme=dark] {
+  --bg: #1b1719;
+  --card: #252023;
+  --text: #efe8ec;
+  --muted: #a8999f;
+  --line: #3a3236;
+  --accent: #e08aab;
+  --accent-soft: #3a2730;
+  --on-accent: #1b1719;
+  --ok: #7fd3a0;
+  --danger: #ff8a80;
+  --shadow: rgb(0 0 0 / .45);
+  color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme=light]):not([data-theme=dark]) {
     --bg: #1b1719;
     --card: #252023;
     --text: #efe8ec;
@@ -20,8 +37,11 @@
     --line: #3a3236;
     --accent: #e08aab;
     --accent-soft: #3a2730;
+    --on-accent: #1b1719;
     --ok: #7fd3a0;
     --danger: #ff8a80;
+    --shadow: rgb(0 0 0 / .45);
+    color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
@@ -91,8 +111,7 @@ button, .btn {
 }
 .btn:hover, button:hover { text-decoration: none; border-color: var(--accent); }
 .btn.disabled { opacity: .35; pointer-events: none; }
-.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-@media (prefers-color-scheme: dark) { .primary { color: #1b1719; } }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: transparent; }
 button.link { background: none; border: 0; padding: .4rem .7rem; font-weight: 500; }
 form.inline { display: inline; }
@@ -159,7 +178,7 @@ ul.birthdays .muted { font-size: .85rem; text-align: right; white-space: nowrap;
 .mention-wrap { position: relative; }
 .mention-menu {
   position: absolute; left: 0; right: 0; z-index: 20; margin: .25rem 0 0; padding: .25rem; list-style: none;
-  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .12);
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow);
 }
 .mention-menu li { padding: .45rem .7rem; border-radius: 8px; cursor: pointer; }
 .mention-menu li.active, .mention-menu li:hover { background: var(--accent-soft); color: var(--accent); }
@@ -229,3 +248,20 @@ ul.quick-notes li + li { border-top: 1px solid var(--line); }
   .calendar .mood { font-size: 1.2rem; margin-top: .55rem; }
   .moods span { width: 2.1rem; height: 2.1rem; font-size: 1.15rem; }
 }
+
+.theme-toggle { display: inline-flex; align-items: center; }
+.theme-toggle button { width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 999px; color: var(--muted); font-size: 1.05rem; line-height: 1; }
+.theme-toggle button:hover { background: var(--accent-soft); color: var(--accent); }
+.theme-toggle svg { width: 1.1rem; height: 1.1rem; }
+.theme-toggle .ico { display: none; }
+:root[data-theme=light] .theme-toggle .ico-light,
+:root[data-theme=dark] .theme-toggle .ico-dark,
+:root:not([data-theme=light]):not([data-theme=dark]) .theme-toggle .ico-auto { display: block; }
+
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: .2rem; gap: .2rem; margin: .4rem 0 0; }
+.segmented label { cursor: pointer; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span { display: inline-block; padding: .35rem .95rem; border-radius: 999px; font-weight: 600; font-size: .92rem; color: var(--muted); }
+.segmented label:hover span { color: var(--accent); }
+.segmented input:checked + span { background: var(--accent); color: var(--on-accent); }
+.segmented input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-soft); }

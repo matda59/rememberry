@@ -1,3 +1,26 @@
+// Theme switching without a reload. The server renders data-theme from the same cookie, so there's no flash on load.
+(() => {
+  const NEXT = { auto: "light", light: "dark", dark: "auto" };
+  const label = (t) => t[0].toUpperCase() + t.slice(1);
+  const apply = (theme) => {
+    document.documentElement.dataset.theme = theme;
+    document.cookie = `rememberry_theme=${theme}; path=/; max-age=${60 * 60 * 24 * 365 * 5}; samesite=lax`;
+    document.querySelectorAll("form[data-theme-toggle]").forEach((form) => {
+      const next = NEXT[theme];
+      form.elements.theme.value = next;
+      const btn = form.querySelector("button");
+      btn.title = `Theme: ${label(theme)} (click for ${label(next)})`;
+      btn.setAttribute("aria-label", `Theme: ${label(theme)}. Switch to ${label(next)}`);
+    });
+    document.querySelectorAll("form[data-theme-picker] input[name=theme]").forEach((r) => { r.checked = r.value === theme; });
+  };
+  document.querySelectorAll("form[data-theme-toggle]").forEach((form) => form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    apply(form.elements.theme.value);
+  }));
+  document.querySelectorAll("form[data-theme-picker] input[name=theme]").forEach((r) => r.addEventListener("change", () => apply(r.value)));
+})();
+
 // @mention autocomplete for textareas marked with data-mentions.
 (() => {
   let people = null;
