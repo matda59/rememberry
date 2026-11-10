@@ -74,6 +74,33 @@ MIGRATIONS = [
     ALTER TABLE journal ADD COLUMN photo TEXT NOT NULL DEFAULT '';
     ALTER TABLE journal ADD COLUMN mood TEXT NOT NULL DEFAULT '';
     """,
+    """
+    CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'owner',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        password_changed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        remember INTEGER NOT NULL DEFAULT 0,
+        created_at REAL NOT NULL,
+        last_seen_at REAL NOT NULL,
+        expires_at REAL NOT NULL,
+        user_agent TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX sessions_user ON sessions (user_id);
+    CREATE TABLE login_failures (
+        key TEXT PRIMARY KEY,
+        failures INTEGER NOT NULL DEFAULT 0,
+        window_start REAL NOT NULL DEFAULT 0,
+        locked_until REAL NOT NULL DEFAULT 0
+    );
+    """,
 ]
 
 

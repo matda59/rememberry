@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Create your account · Rememberry{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <p class="eyebrow">First-time setup</p>
+  <h1>Create your account</h1>
+  <p class="muted small">This is the owner account for this Rememberry. You'll use it to sign in from now on{% if legacy_login %}, and the old <code>APP_PASSWORD</code> stops working{% endif %}.</p>
+  <form method="post" action="/setup" class="stack"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Username
+      <input type="text" name="username" value="{{ username }}" required maxlength="64" autofocus autocomplete="username" autocapitalize="none" spellcheck="false">
+    </label>
+    <label>Password <span class="hint">At least 8 characters.</span>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+    </label>
+    <label>Confirm password
+      <input type="password" name="confirm" required minlength="8" autocomplete="new-password">
+    </label>
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <button class="primary">Create account</button>
+  </form>
+</section>
+{% endblock %}

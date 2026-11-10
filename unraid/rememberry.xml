@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/matda59/rememberry</Support>
   <Project>https://github.com/matda59/rememberry</Project>
-  <Overview>Rememberry: a small personal app for people dossiers (photo, birthday, kids, how you met, work, notes, tags, dated quick notes) and a one-paragraph-a-day journal with moods, photos, @mentions and an on-this-day view. Optional birthday reminders via ntfy, Pushover, Discord or email. Installable as a PWA over HTTPS. SQLite and photo uploads live in /data.</Overview>
+  <Overview>Rememberry: a small personal app for people dossiers (photo, birthday, kids, how you met, work, notes, tags, dated quick notes) and a one-paragraph-a-day journal with moods, photos, @mentions and an on-this-day view. Optional birthday reminders via ntfy, Pushover, Discord or email. Owner account with username and password (hashed, lockouts, CSRF-protected), light and dark mode. Installable as a PWA over HTTPS. Forgot the password? docker exec -it rememberry python -m app.cli reset-password. SQLite and photo uploads live in /data.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL/>
@@ -23,9 +23,11 @@
   <Requires/>
   <Config Name="Web UI port" Target="8080" Default="8080" Mode="tcp" Description="Port for the web interface." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
   <Config Name="Data" Target="/data" Default="/mnt/user/appdata/rememberry" Mode="rw" Description="Database (rememberry.db) and uploaded photos (uploads/). Back this folder up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/rememberry</Config>
-  <Config Name="Password" Target="APP_PASSWORD" Default="" Mode="" Description="Optional. If set, the app asks for this password. Leave empty for no login." Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="Legacy password" Target="APP_PASSWORD" Default="" Mode="" Description="Legacy, leave empty on new installs: you create a username and password in the app on first run. Old installs: keeps working until you create your account, then it is ignored and can be removed." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Secure cookies" Target="COOKIE_SECURE" Default="auto" Mode="" Description="auto (Secure over HTTPS), true (always; use behind an HTTPS reverse proxy) or false." Type="Variable" Display="advanced" Required="false" Mask="false">auto</Config>
+  <Config Name="Trusted proxy IPs" Target="FORWARDED_ALLOW_IPS" Default="127.0.0.1" Mode="" Description="Behind a reverse proxy, its IP (or *) so lockouts see real client IPs and HTTPS is detected." Type="Variable" Display="advanced" Required="false" Mask="false">127.0.0.1</Config>
   <Config Name="Timezone" Target="TZ" Default="UTC" Mode="" Description="Decides what 'today' is for the journal, e.g. Australia/Sydney." Type="Variable" Display="always" Required="false" Mask="false">UTC</Config>
-  <Config Name="Secret key" Target="SECRET_KEY" Default="" Mode="" Description="Optional. Random string used to sign the login cookie. Defaults to a value derived from the password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Secret key" Target="SECRET_KEY" Default="" Mode="" Description="Legacy. Only signs the old APP_PASSWORD cookie." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
   <Config Name="Reminder days ahead" Target="REMINDER_DAYS_AHEAD" Default="3" Mode="" Description="Birthday reminders are sent this many days ahead and on the day." Type="Variable" Display="always" Required="false" Mask="false">3</Config>
   <Config Name="Reminder hour" Target="REMINDER_HOUR" Default="9" Mode="" Description="Earliest hour (0-23, in TZ) to send the daily birthday reminder." Type="Variable" Display="advanced" Required="false" Mask="false">9</Config>
   <Config Name="ntfy URL" Target="NTFY_URL" Default="" Mode="" Description="Optional. ntfy server (default https://ntfy.sh) or a full topic URL." Type="Variable" Display="always" Required="false" Mask="false"></Config>

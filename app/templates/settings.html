@@ -6,9 +6,51 @@
   <p class="muted">Reminders are configured with environment variables on the container; see the README.</p>
 </section>
 
+<section class="card" id="account">
+  <h2>Account</h2>
+  {% if current_user %}
+  <p>Signed in as <strong>{{ current_user.username }}</strong>.</p>
+  {% if account_message %}<p class="pill ok inline-pill" role="status">{{ account_message }}</p>{% endif %}
+  {% if account_error %}<p class="error" role="alert">{{ account_error }}</p>{% endif %}
+  <div class="account-forms">
+    <form method="post" action="/settings/username" class="stack"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <h3>Change username</h3>
+      <label>New username
+        <input type="text" name="username" value="{{ current_user.username }}" required maxlength="64" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </label>
+      <label>Current password
+        <input type="password" name="current_password" required autocomplete="current-password">
+      </label>
+      <div><button>Change username</button></div>
+    </form>
+    <form method="post" action="/settings/password" class="stack"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <h3>Change password</h3>
+      <input type="text" name="username" value="{{ current_user.username }}" autocomplete="username" hidden>
+      <label>Current password
+        <input type="password" name="current_password" required autocomplete="current-password">
+      </label>
+      <label>New password <span class="hint">At least 8 characters. Signs out your other devices.</span>
+        <input type="password" name="new_password" required minlength="8" autocomplete="new-password">
+      </label>
+      <label>Confirm new password
+        <input type="password" name="confirm" required minlength="8" autocomplete="new-password">
+      </label>
+      <div><button>Change password</button></div>
+    </form>
+  </div>
+  <form method="post" action="/settings/sign-out-others" class="actions"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button {{ "disabled" if not other_sessions }}>Sign out other devices</button>
+    <span class="muted small">{{ other_sessions }} other signed-in device{{ "s" if other_sessions != 1 }}.</span>
+  </form>
+  {% elif legacy_login %}
+  <p>You're signed in with the shared <code>APP_PASSWORD</code>. Create a username and password to replace it.</p>
+  <div class="actions"><a class="btn primary" href="/setup">Create your account</a></div>
+  {% endif %}
+</section>
+
 <section class="card">
   <h2>Appearance</h2>
-  <form method="post" action="/theme" data-theme-picker>
+  <form method="post" action="/theme" data-theme-picker><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="next" value="/settings">
     <fieldset class="segmented" aria-label="Theme">
       {% for value, label in [("light", "Light"), ("dark", "Dark"), ("auto", "Auto")] %}
@@ -23,7 +65,7 @@
 <section class="card">
   <div class="card-head">
     <h2>Birthday reminders</h2>
-    <form method="post" action="/settings/test-notification"><button>Send test notification</button></form>
+    <form method="post" action="/settings/test-notification"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button>Send test notification</button></form>
   </div>
   <p>Checked daily from {{ "%02d:00"|format(hour) }} ({{ tz }}). Sends one message for birthdays today and in {{ days_ahead }} day{{ "s" if days_ahead != 1 }}.
     {% if last_check %}<span class="muted">Last checked {{ last_check }}.</span>{% endif %}</p>

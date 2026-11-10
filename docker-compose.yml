@@ -10,8 +10,9 @@ services:
       - ./data:/data
     environment:
       TZ: "UTC"  # e.g. Australia/Sydney; decides what "today" is
-      # Leave empty to disable the login screen.
-      APP_PASSWORD: ""
+      # Open the app and create your account on first run. Behind an HTTPS reverse proxy also set:
+      # COOKIE_SECURE: "true"
+      # FORWARDED_ALLOW_IPS: "*"
       # Birthday reminders (all optional; see README for Pushover, Discord and SMTP):
       # REMINDER_DAYS_AHEAD: "3"
       # NTFY_TOPIC: "my-secret-birthday-topic"

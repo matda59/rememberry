@@ -265,3 +265,16 @@ ul.quick-notes li + li { border-top: 1px solid var(--line); }
 .segmented label:hover span { color: var(--accent); }
 .segmented input:checked + span { background: var(--accent); color: var(--on-accent); }
 .segmented input:focus-visible + span { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.notice { border-color: var(--accent); background: var(--accent-soft); }
+.account-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: .5rem; }
+.account-forms .stack { margin-top: 0; align-content: start; }
+.account-forms h3 { font-size: .95rem; margin: 0; }
+.inline-pill { display: inline-block; margin: .3rem 0; }
+.forgot { margin-top: 1rem; }
+code { font-size: .88em; background: var(--accent-soft); padding: .05rem .3rem; border-radius: 5px; }
+button[disabled] { opacity: .45; cursor: default; }
+button[disabled]:hover { border-color: var(--line); }
+@media (max-width: 560px) { .account-forms { grid-template-columns: 1fr; } }
+.stack label.check { display: flex; font-weight: 400; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }

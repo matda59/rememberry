@@ -4,7 +4,7 @@
 {% block content %}
 <section class="card">
   <h1>{{ "Edit " ~ person.name if person else "Add a person" }}</h1>
-  <form method="post" action="{{ '/people/%d' % person.id if person else '/people' }}" enctype="multipart/form-data" class="stack">
+  <form method="post" action="{{ '/people/%d' % person.id if person else '/people' }}" enctype="multipart/form-data" class="stack"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label>Name
       <input name="name" required value="{{ person.name if person else '' }}" {% if not person %}autofocus{% endif %}>
     </label>
@@ -44,7 +44,7 @@
     </div>
   </form>
   {% if person %}
-  <form method="post" action="/people/{{ person.id }}/delete" class="danger-zone" onsubmit="return confirm('Delete this person and their photo? This cannot be undone.')">
+  <form method="post" action="/people/{{ person.id }}/delete" class="danger-zone" onsubmit="return confirm('Delete this person and their photo? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button class="danger">Delete person</button>
   </form>
   {% endif %}

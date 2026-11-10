@@ -1,13 +1,25 @@
 {% extends "base.html" %}
+{% block title %}Sign in · Rememberry{% endblock %}
 {% block content %}
 <section class="card narrow">
   <h1>Welcome back</h1>
-  <form method="post" action="/login" class="stack">
-    <label>Password
-      <input type="password" name="password" autofocus required autocomplete="current-password">
+  {% if legacy %}<p class="muted small">Sign in with the app password (<code>APP_PASSWORD</code>). You'll then be asked to create your own account.</p>{% endif %}
+  <form method="post" action="/login" class="stack"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    {% if not legacy %}
+    <label>Username
+      <input type="text" name="username" value="{{ username }}" {{ "autofocus" if not username }} required autocomplete="username" autocapitalize="none" spellcheck="false">
     </label>
-    {% if error %}<p class="error">Wrong password.</p>{% endif %}
-    <button class="primary">Unlock</button>
+    {% endif %}
+    <label>Password
+      <input type="password" name="password" {{ "autofocus" if legacy or username }} required autocomplete="current-password">
+    </label>
+    {% if not legacy %}
+    <label class="check"><input type="checkbox" name="remember" value="1" {{ "checked" if remember }}> Remember me on this device for 90 days</label>
+    {% endif %}
+    {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+    <button class="primary">Sign in</button>
   </form>
+  {% if not legacy %}<p class="muted small forgot">Forgot your password? Reset it from the server; see the README (“Reset a forgotten password”).</p>{% endif %}
 </section>
 {% endblock %}

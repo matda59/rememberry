@@ -25,7 +25,7 @@
       <a href="/settings" class="icon {{ 'active' if nav == 'settings' }}" title="Settings" aria-label="Settings">&#9881;&#xFE0E;</a>
       {% endif %}
       {% set next_theme = {"auto": "light", "light": "dark", "dark": "auto"}[theme] %}
-      <form method="post" action="/theme" class="theme-toggle" data-theme-toggle>
+      <form method="post" action="/theme" class="theme-toggle" data-theme-toggle><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="theme" value="{{ next_theme }}">
         <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="link" title="Theme: {{ theme|capitalize }} (click for {{ next_theme|capitalize }})" aria-label="Theme: {{ theme|capitalize }}. Switch to {{ next_theme|capitalize }}">
@@ -35,11 +35,17 @@
         </button>
       </form>
       {% if auth_enabled and nav != "login" %}
-      <form method="post" action="/logout" class="inline"><button class="link" title="Log out">Log out</button></form>
+      <form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link" title="Log out">Log out</button></form>
       {% endif %}
     </nav>
   </header>
   <main>
+    {% if legacy_login and nav != "login" %}
+    <section class="card notice">
+      <strong>Set up your account.</strong> Rememberry now has a proper login with your own username and password.
+      <a href="/setup">Create your account &rarr;</a>
+    </section>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 </body>

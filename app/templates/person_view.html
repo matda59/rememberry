@@ -27,7 +27,7 @@
     {% if person.work %}<dt>Work</dt><dd class="pre">{{ person.work }}</dd>{% endif %}
   </dl>
   <h2 id="quick-notes">Quick notes</h2>
-  <form method="post" action="/people/{{ person.id }}/notes" class="quick-note">
+  <form method="post" action="/people/{{ person.id }}/notes" class="quick-note"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="date" name="day" value="{{ today.isoformat() }}" aria-label="Date">
     <input name="body" placeholder="e.g. Started a new job at the hospital" required aria-label="Note">
     <button class="primary">Add</button>
@@ -38,7 +38,7 @@
     <li>
       <span class="date">{{ n.day }}</span>
       <span class="grow pre">{{ n.body }}</span>
-      <form method="post" action="/people/{{ person.id }}/notes/{{ n.id }}/delete" onsubmit="return confirm('Delete this note?')">
+      <form method="post" action="/people/{{ person.id }}/notes/{{ n.id }}/delete" onsubmit="return confirm('Delete this note?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="link danger-link" title="Delete note" aria-label="Delete note">&times;</button>
       </form>
     </li>

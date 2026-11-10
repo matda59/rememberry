@@ -1,10 +1,7 @@
 import calendar
-import hashlib
-import hmac
 import logging
 import os
 import re
-import secrets
 import shutil
 import tempfile
 import threading
@@ -15,19 +12,19 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from urllib.parse import urlencode
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import db, notify
+from . import auth, db, notify
 
 BASE = Path(__file__).parent
-PASSWORD = os.environ.get("APP_PASSWORD", "")
-SECRET = os.environ.get("SECRET_KEY") or hashlib.sha256(("rememberry:" + PASSWORD).encode()).hexdigest()
 TZ = ZoneInfo(os.environ.get("TZ", "UTC"))
-COOKIE = "rememberry_auth"
 THEME_COOKIE = "rememberry_theme"
 THEMES = ("auto", "light", "dark")
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
@@ -37,10 +34,20 @@ MOODS = {"😄": "Great", "🙂": "Good", "😐": "Okay", "😕": "Meh", "😢":
 NONEMPTY_ENTRY = "(body != '' OR photo != '' OR mood != '')"
 REMINDER_DAYS_AHEAD = int(os.environ.get("REMINDER_DAYS_AHEAD") or 3)
 REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR") or 9)
+OPEN_PATHS = ("/static/", "/healthz", "/manifest.webmanifest", "/sw.js", "/theme")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
 log = logging.getLogger("rememberry")
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+async def csrf_protect(request: Request):
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    form = await request.form()
+    if not auth.csrf_ok(request.cookies.get(auth.CSRF_COOKIE, ""), str(form.get("csrf_token", ""))):
+        raise HTTPException(403, "This form has expired. Go back, reload the page and try again.")
+
+
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, dependencies=[Depends(csrf_protect)])
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
@@ -50,6 +57,8 @@ def startup():
     db.init()
     with db.connect() as conn:
         reindex_mentions(conn)
+    if auth.LEGACY_PASSWORD and auth.has_users():
+        log.info("APP_PASSWORD is set but an account exists, so it is ignored. You can remove it.")
     threading.Thread(target=reminder_loop, daemon=True).start()
 
 
@@ -57,17 +66,62 @@ def today() -> date:
     return datetime.now(TZ).date()
 
 
-def auth_token() -> str:
-    return hmac.new(SECRET.encode(), b"ok", hashlib.sha256).hexdigest()
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def set_cookie(resp, request: Request, name: str, value: str, max_age: int | None, httponly: bool = True):
+    resp.set_cookie(name, value, max_age=max_age, httponly=httponly, samesite="lax",
+                    secure=auth.cookie_secure(request.url.scheme))
+
+
+def to_login(request: Request):
+    if request.method == "GET" and request.url.path != "/":
+        target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+        return redirect("/login?" + urlencode({"next": target}))
+    return redirect("/login")
+
+
+def gate(request: Request):
+    """Who is asking, and a redirect if they may not see this path. None means carry on."""
+    path = request.url.path
+    if path.startswith(OPEN_PATHS) or path == "/logout":
+        return None
+    if auth.has_users():
+        request.state.user = auth.session_user(request.cookies.get(auth.SESSION_COOKIE, ""))
+        if request.state.user:
+            return redirect("/") if path in ("/login", "/setup") else None
+        return None if path == "/login" else to_login(request)
+    if auth.LEGACY_PASSWORD:
+        request.state.legacy = auth.legacy_ok(request.cookies.get(auth.LEGACY_COOKIE, ""))
+        if request.state.legacy:
+            return redirect("/") if path == "/login" else None
+        return None if path == "/login" else to_login(request)
+    return None if path == "/setup" else redirect("/setup")
 
 
 @app.middleware("http")
-async def require_password(request: Request, call_next):
-    open_paths = ("/login", "/static/", "/healthz", "/manifest.webmanifest", "/sw.js", "/theme")
-    if PASSWORD and not request.url.path.startswith(open_paths):
-        if not hmac.compare_digest(request.cookies.get(COOKIE, ""), auth_token()):
-            return RedirectResponse("/login", status_code=303)
-    return await call_next(request)
+async def authenticate(request: Request, call_next):
+    request.state.user = None
+    request.state.legacy = False
+    csrf = request.cookies.get(auth.CSRF_COOKIE, "")
+    fresh_csrf = "" if csrf else auth.new_csrf_token()
+    request.state.csrf = csrf or fresh_csrf
+    resp = gate(request) or await call_next(request)
+    if fresh_csrf:
+        set_cookie(resp, request, auth.CSRF_COOKIE, fresh_csrf, None)
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("Referrer-Policy", "same-origin")
+    return resp
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    if not hasattr(request.state, "csrf") or request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    message = exc.detail if exc.status_code != 404 else "That page doesn't exist."
+    return render(request, "error.html", status_code=exc.status_code, code=exc.status_code, message=message)
 
 
 def current_theme(request: Request) -> str:
@@ -75,11 +129,15 @@ def current_theme(request: Request) -> str:
     return value if value in THEMES else "auto"
 
 
-def render(request: Request, name: str, **ctx):
+def render(request: Request, name: str, status_code: int = 200, **ctx):
     ctx.setdefault("nav", "")
     ctx.setdefault("moods", MOODS)
-    return templates.TemplateResponse(request, name, {"auth_enabled": bool(PASSWORD), "theme": current_theme(request),
-                                                      **ctx})
+    user = getattr(request.state, "user", None)
+    legacy = getattr(request.state, "legacy", False)
+    return templates.TemplateResponse(request, name, {
+        "auth_enabled": bool(user or legacy), "current_user": user, "legacy_login": legacy,
+        "csrf_token": getattr(request.state, "csrf", ""), "theme": current_theme(request), **ctx,
+    }, status_code=status_code)
 
 
 def redirect(url: str):
@@ -104,27 +162,147 @@ def set_theme(theme: str = Form("auto"), next: str = Form("/")):
 
 # ---------- auth ----------
 
+def lockout_message(seconds: int) -> str:
+    minutes = max(1, round(seconds / 60))
+    return f"Too many failed attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}."
+
+
+def start_session(resp, request: Request, user_id: int, remember: bool):
+    token, max_age = auth.create_session(user_id, remember, request.headers.get("user-agent", ""))
+    set_cookie(resp, request, auth.SESSION_COOKIE, token, max_age)
+    resp.delete_cookie(auth.LEGACY_COOKIE)
+
+
 @app.get("/login")
-def login_form(request: Request):
-    if not PASSWORD:
-        return redirect("/")
-    return render(request, "login.html", nav="login", error=False)
+def login_form(request: Request, next: str = ""):
+    has_users = auth.has_users()
+    if not has_users and not auth.LEGACY_PASSWORD:
+        return redirect("/setup")
+    return render(request, "login.html", nav="login", legacy=not has_users, next=safe_next(next, ""),
+                  username="", remember=True, error="")
 
 
 @app.post("/login")
-def login(request: Request, password: str = Form("")):
-    if PASSWORD and secrets.compare_digest(password.encode(), PASSWORD.encode()):
-        resp = redirect("/")
-        resp.set_cookie(COOKIE, auth_token(), max_age=60 * 60 * 24 * 365, httponly=True, samesite="lax")
+def login(request: Request, username: str = Form(""), password: str = Form(""), remember: str = Form(""),
+          next: str = Form("")):
+    has_users = auth.has_users()
+    if not has_users and not auth.LEGACY_PASSWORD:
+        return redirect("/setup")
+    ip, username = client_ip(request), username.strip()
+
+    def fail(message: str, status: int):
+        return render(request, "login.html", status_code=status, nav="login", legacy=not has_users,
+                      next=safe_next(next, ""), username=username, remember=bool(remember), error=message)
+
+    wait = auth.locked_for(ip, username if has_users else "")
+    if wait:
+        return fail(lockout_message(wait), 429)
+    if has_users:
+        user = auth.authenticate(username, password)
+        if not user:
+            auth.record_failure(ip, username)
+            log.warning("Failed login for %r from %s", username, ip)
+            wait = auth.locked_for(ip, username)
+            return fail(lockout_message(wait) if wait else "Wrong username or password.", 429 if wait else 401)
+        auth.clear_failures(ip, username)
+        resp = redirect(safe_next(next))
+        start_session(resp, request, user["id"], bool(remember))
         return resp
-    return render(request, "login.html", nav="login", error=True)
+    if not auth.legacy_password_ok(password):
+        auth.record_failure(ip)
+        log.warning("Failed APP_PASSWORD login from %s", ip)
+        wait = auth.locked_for(ip)
+        return fail(lockout_message(wait) if wait else "Wrong password.", 429 if wait else 401)
+    auth.clear_failures(ip)
+    resp = redirect(safe_next(next))
+    set_cookie(resp, request, auth.LEGACY_COOKIE, auth.legacy_token(), 60 * 60 * 24 * 365)
+    return resp
 
 
 @app.post("/logout")
-def logout():
+def logout(request: Request):
+    auth.end_session(request.cookies.get(auth.SESSION_COOKIE, ""))
     resp = redirect("/login")
-    resp.delete_cookie(COOKIE)
+    resp.delete_cookie(auth.SESSION_COOKIE)
+    resp.delete_cookie(auth.LEGACY_COOKIE)
     return resp
+
+
+@app.get("/setup")
+def setup_form(request: Request):
+    if auth.has_users():
+        return redirect("/")
+    return render(request, "setup.html", nav="login", username="", error="")
+
+
+@app.post("/setup")
+def setup(request: Request, username: str = Form(""), password: str = Form(""), confirm: str = Form("")):
+    if auth.has_users():
+        return redirect("/")
+    username = username.strip()
+    error = auth.username_error(username) or auth.password_error(password, confirm)
+    user_id = None if error else auth.create_owner(username, password)
+    if not error and not user_id:
+        return redirect("/login")
+    if error:
+        return render(request, "setup.html", status_code=400, nav="login", username=username, error=error)
+    log.info("Created owner account %r", username)
+    resp = redirect("/")
+    start_session(resp, request, user_id, remember=True)
+    return resp
+
+
+def account_page(request: Request, error: str = "", status: int = 400):
+    return settings_page(request, account_error=error, status_code=status)
+
+
+def check_current_password(request: Request, password: str):
+    """Error message, or '' when the signed-in user's current password is right."""
+    user, ip = request.state.user, client_ip(request)
+    wait = auth.locked_for(ip, user["username"])
+    if wait:
+        return lockout_message(wait)
+    if not auth.verify_password(user["password_hash"], password):
+        auth.record_failure(ip, user["username"])
+        wait = auth.locked_for(ip, user["username"])
+        return lockout_message(wait) if wait else "Your current password is wrong."
+    auth.clear_failures(ip, user["username"])
+    return ""
+
+
+@app.post("/settings/username")
+def change_username(request: Request, username: str = Form(""), current_password: str = Form("")):
+    if not request.state.user:
+        return redirect("/setup")
+    username = username.strip()
+    error = auth.username_error(username) or check_current_password(request, current_password)
+    existing = None if error else auth.find_user(username)
+    if existing and existing["id"] != request.state.user["id"]:
+        error = "That username is taken."
+    if error:
+        return account_page(request, error)
+    auth.set_username(request.state.user["id"], username)
+    return redirect("/settings?account=username#account")
+
+
+@app.post("/settings/password")
+def change_password(request: Request, current_password: str = Form(""), new_password: str = Form(""),
+                    confirm: str = Form("")):
+    if not request.state.user:
+        return redirect("/setup")
+    error = check_current_password(request, current_password) or auth.password_error(new_password, confirm)
+    if error:
+        return account_page(request, error)
+    auth.set_password(request.state.user["id"], new_password)
+    auth.end_other_sessions(request.state.user["id"], request.cookies.get(auth.SESSION_COOKIE, ""))
+    return redirect("/settings?account=password#account")
+
+
+@app.post("/settings/sign-out-others")
+def sign_out_others(request: Request):
+    if request.state.user:
+        auth.end_other_sessions(request.state.user["id"], request.cookies.get(auth.SESSION_COOKIE, ""))
+    return redirect("/settings?account=signed-out#account")
 
 
 @app.get("/manifest.webmanifest")
@@ -228,11 +406,26 @@ def reminder_loop():
         time.sleep(600)
 
 
+ACCOUNT_MESSAGES = {
+    "username": "Username changed.",
+    "password": "Password changed. Other devices have been signed out.",
+    "signed-out": "Other devices have been signed out.",
+}
+
+
 @app.get("/settings")
-def settings_page(request: Request, results=None):
-    return render(request, "settings.html", nav="settings", channels=notify.channels(), results=results,
-                  days_ahead=REMINDER_DAYS_AHEAD, hour=REMINDER_HOUR, tz=str(TZ),
-                  last_check=db.get_setting("reminders_sent_for"))
+def settings_get(request: Request):
+    return settings_page(request)
+
+
+def settings_page(request: Request, results=None, account_error: str = "", status_code: int = 200):
+    user = request.state.user
+    return render(request, "settings.html", status_code=status_code, nav="settings", channels=notify.channels(),
+                  results=results, days_ahead=REMINDER_DAYS_AHEAD, hour=REMINDER_HOUR, tz=str(TZ),
+                  last_check=db.get_setting("reminders_sent_for"), account_error=account_error,
+                  account_message=ACCOUNT_MESSAGES.get(request.query_params.get("account", ""), ""),
+                  other_sessions=auth.count_other_sessions(user["id"], request.cookies.get(auth.SESSION_COOKIE, ""))
+                  if user else 0)
 
 
 @app.post("/settings/test-notification")

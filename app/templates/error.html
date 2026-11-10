@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error · Rememberry{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>{{ "Not found" if code == 404 else "Something went wrong" }}</h1>
+  <p>{{ message }}</p>
+  <div class="actions"><a class="btn" href="/">Go home</a></div>
+</section>
+{% endblock %}

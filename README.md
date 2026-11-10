@@ -14,7 +14,7 @@ Plus a one-click **backup zip** (database + photos) and **Markdown export** of t
 
 **Light / dark mode**: the button next to the gear in the header cycles Light, Dark and Auto (follow your device), and Settings has the same choice. It's remembered per browser in a cookie and applied before the page draws, so there's no flash.
 
-Single user, one container, one port, everything stored in `/data`.
+One owner account (username + password), one container, one port, everything stored in `/data`.
 
 ![Today](docs/today-desktop.png)
 
@@ -41,12 +41,47 @@ The database schema is versioned. On startup the app applies any pending migrati
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
-| `APP_PASSWORD` | empty | If set, the app shows a login screen asking for this password. Empty means no login. |
+| `APP_PASSWORD` | empty | **Legacy.** Old installs used this shared password. It keeps working until you create an account, then it's ignored and can be removed. New installs don't need it. |
 | `TZ` | `UTC` | Timezone that decides what "today" is, e.g. `Australia/Sydney`. |
-| `SECRET_KEY` | derived from password | Optional random string used to sign the login cookie. |
+| `SECRET_KEY` | derived from password | **Legacy.** Only signs the old `APP_PASSWORD` cookie. |
+| `COOKIE_SECURE` | `auto` | `auto` marks login cookies `Secure` when the request arrived over HTTPS; `true` always (use this behind an HTTPS reverse proxy); `false` never. |
+| `FORWARDED_ALLOW_IPS` | `127.0.0.1` | Behind a reverse proxy, set to the proxy's IP (or `*`) so the app sees real client IPs and HTTPS for lockouts and `COOKIE_SECURE=auto`. |
 | `PORT` | `8080` | Port inside the container. |
 
 Birthdays are free text. Write them as `YYYY-MM-DD` (or `MM-DD` if you don't know the year) and they show up in "Upcoming birthdays" with the age they're turning; anything else is stored as-is.
+
+## Accounts and sign-in
+
+- **First run**: open the app and you get a **Create your account** page: pick a username and a password (8+ characters). That's the owner account. Passwords are hashed with Argon2id; nothing is stored in plain text.
+- **Sign in** with username and password. Tick **Remember me** to stay signed in on that device for 90 days (extended while you use it); otherwise the session ends when you close the browser (or after 12 idle hours). **Log out** is in the header.
+- **Settings → Account**: change your username or password (both need your current password). Changing the password signs out every other device; **Sign out other devices** does that on its own.
+- **Lockout**: 5 wrong passwords from one IP within 15 minutes, or 10 for one username from anywhere, blocks further attempts for 15 minutes, even with the right password. Failed logins are logged with the IP.
+- **Protection**: every form carries a CSRF token; session cookies are `HttpOnly`, `SameSite=Lax` and `Secure` over HTTPS (see `COOKIE_SECURE`); sessions are stored server-side as hashes, so logging out or changing the password really ends them.
+
+The database stores users in their own `users` table with a role, so more accounts could be added later; for now there's one owner.
+
+### Upgrading from APP_PASSWORD
+
+Nothing breaks. After upgrading, your old password and your existing login cookie keep working, and every page shows a **Set up your account** banner. Click it (or go to **Settings → Account**), create a username and password, and you're signed in with the new account. From then on `APP_PASSWORD` is ignored; remove it from the container when convenient. If you never set `APP_PASSWORD`, the app goes straight to the **Create your account** page after the upgrade. Your people and journal are untouched either way.
+
+### Reset a forgotten password
+
+Run this on the server (on Unraid: click the container icon → **Console**, or use the terminal):
+
+```bash
+docker exec -it rememberry python -m app.cli reset-password
+```
+
+It asks for a new password twice, signs out every session and clears lockouts. Other commands:
+
+| Command | What it does |
+| --- | --- |
+| `python -m app.cli reset-password --username NAME` | Pick the account (only needed if there are several). Creates it if there are no accounts yet. |
+| `python -m app.cli unlock` | Clear lockouts after too many failed attempts. |
+| `python -m app.cli list-users` | Show accounts. |
+| `python -m app.cli delete-accounts` | Remove all accounts so the app shows first-run setup again (people and journal are kept). Anyone who can reach the app then can claim it, so sign up straight away. |
+
+Prefix each with `docker exec -it rememberry`. For scripts, `reset-password --password-stdin` reads the password from stdin instead of prompting.
 
 ### Birthday reminders
 
@@ -76,7 +111,7 @@ docker compose up -d --build
 # open http://localhost:8080
 ```
 
-Data goes to `./data`. Edit `TZ` and `APP_PASSWORD` in `docker-compose.yml`.
+Data goes to `./data`. Edit `TZ` in `docker-compose.yml`, then open the app and create your account.
 
 ## Run locally without Docker
 
@@ -125,10 +160,9 @@ cp /mnt/user/appdata/rememberry-src/unraid/rememberry.xml /boot/config/plugins/d
 | **Add Port**: Container Port `8080`, Host Port | `8080` (or any free port) |
 | **Add Path**: Container Path `/data`, Host Path | `/mnt/user/appdata/rememberry` |
 | **Add Variable**: Key `TZ` | e.g. `Australia/Sydney` |
-| **Add Variable**: Key `APP_PASSWORD` | your password, or leave empty |
 | **Add Variable** (optional) | any of the [birthday reminder](#birthday-reminders) variables, e.g. `NTFY_TOPIC` |
 
-Click **Apply**, then open `http://<unraid-ip>:8080`.
+Click **Apply**, then open `http://<unraid-ip>:8080` and create your account.
 
 ### 3. Back up
 
@@ -143,8 +177,8 @@ Rememberry is a Progressive Web App, so it can sit on your home screen and open 
 - **Android (Chrome):** open the HTTPS address, menu **⋮ → Install app** (or **Add to Home screen**).
 - **iPhone/iPad (Safari):** open the HTTPS address, **Share → Add to Home Screen**.
 
-If you use `APP_PASSWORD`, you'll log in once inside the installed app.
+You'll sign in once inside the installed app; tick **Remember me** so it stays signed in.
 
 ## Security notes
 
-This is built for a home LAN. The optional password is a single shared secret with a long-lived cookie; if you expose the app to the internet, put it behind a reverse proxy with HTTPS (and ideally your existing SSO/VPN) rather than relying on it alone.
+This is built for a home LAN. The login has hashed passwords, lockouts and CSRF protection, but it's still a small app: if you expose it to the internet, put it behind a reverse proxy with HTTPS (and ideally your existing SSO/VPN), and set `COOKIE_SECURE=true` and `FORWARDED_ALLOW_IPS` to the proxy. Until an account exists, whoever opens the app first can create it, so do that right after installing.

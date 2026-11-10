@@ -9,7 +9,7 @@
     </div>
     {% if saved %}<span class="pill ok">Saved</span>{% endif %}
   </div>
-  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data">
+  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <textarea name="body" rows="8" placeholder="What did you do today? How did you feel? Type @ to mention someone." autofocus data-mentions>{{ entry.body if entry else "" }}</textarea>
     {{ entry_extras(entry, moods) }}
     <div class="actions">
