@@ -2,15 +2,15 @@
 
 A small, self-hosted personal app with two things in it:
 
-- **People**: a dossier per person with a photo, birthday, children, when/where you met, job/work and a big free-text notes field. List, search across every field, and see birthdays coming up in the next 30 days.
+- **People**: a dossier per person with a photo, birthday, children, when/where you met, job/work and a big free-text notes field. List and search across every field, see birthdays coming up in the next 30 days, and:
+  - **Tags**: comma-separated tags/groups on each person (family, work, book club); filter the people list by tag.
+  - **Quick notes**: short dated notes on a person ("Started a new job", "Asked about Mia's recital"), newest first, next to the free-text fields.
+  - **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
 - **Journal**: one short entry per day. Today's entry is on the home page, with **On this day** entries from the same date in previous years; browse, search and edit past days.
-- **Tags**: comma-separated tags/groups on each person (family, work, book club); filter the people list by tag.
-- **Quick notes**: short dated notes on a person ("Started a new job", "Asked about Mia's recital"), newest first, next to the free-text fields.
-- **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
-- **Moods and photos**: pick a mood emoji and attach one photo per journal day. The journal calendar shows each day's mood for the month.
-- **Backup and export**: one-click zip of the database and photos, and a Markdown export of the journal, from the settings page.
-- **Installable**: a web app manifest, icons and a service worker let you add it to your phone's home screen (see [Install on your phone](#install-on-your-phone)).
-- **@mentions**: type `@` in a journal entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
+  - **@mentions**: type `@` in an entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
+  - **Moods and photos**: pick a mood emoji and attach one photo per day. The journal calendar shows each day's mood for the month.
+
+Plus a one-click **backup zip** (database + photos) and **Markdown export** of the journal on the settings page, and it's an **installable PWA** for your phone's home screen (see [Install on your phone](#install-on-your-phone)).
 
 Single user, one container, one port, everything stored in `/data`.
 
@@ -18,7 +18,7 @@ Single user, one container, one port, everything stored in `/data`.
 
 ## Stack
 
-Python 3.12, FastAPI, Jinja2 server-rendered pages, SQLite (stdlib `sqlite3`), plain CSS. No JavaScript build, no external services.
+Python 3.12, FastAPI, Jinja2 server-rendered pages, SQLite (stdlib `sqlite3`), plain CSS and a little vanilla JS. No JavaScript build; the only outbound calls are the optional notification channels you configure.
 
 ## Data
 
@@ -26,8 +26,8 @@ Everything lives in the `/data` volume:
 
 | Path | Contents |
 | --- | --- |
-| `/data/rememberry.db` | SQLite database (people + journal) |
-| `/data/uploads/` | Uploaded photos |
+| `/data/rememberry.db` | SQLite database (people, notes, tags, journal, settings) |
+| `/data/uploads/` | Uploaded photos (people and journal days) |
 
 Back up that folder and you have backed up everything. You can also grab a backup from the browser: **Settings → Download backup** gives a zip with a consistent copy of the database, every photo, and the journal as Markdown (`journal.md`); **Export journal** downloads just the Markdown. To restore a backup zip, stop the container, unzip it into the data folder (replacing `rememberry.db` and `uploads/`), and start it again.
 
@@ -43,6 +43,8 @@ The database schema is versioned. On startup the app applies any pending migrati
 | `TZ` | `UTC` | Timezone that decides what "today" is, e.g. `Australia/Sydney`. |
 | `SECRET_KEY` | derived from password | Optional random string used to sign the login cookie. |
 | `PORT` | `8080` | Port inside the container. |
+
+Birthdays are free text. Write them as `YYYY-MM-DD` (or `MM-DD` if you don't know the year) and they show up in "Upcoming birthdays" with the age they're turning; anything else is stored as-is.
 
 ### Birthday reminders
 
@@ -64,8 +66,6 @@ All optional. Set any channels you want; with none set, reminders are off. Once 
 | `SMTP_USER` / `SMTP_PASSWORD` | empty | Login, if your server needs one. |
 | `SMTP_FROM` | `SMTP_USER` | From address. |
 | `SMTP_TO` | empty | Where to send reminders (comma-separate several). |
-
-Birthdays are free text. Write them as `YYYY-MM-DD` (or `MM-DD` if you don't know the year) and they show up in "Upcoming birthdays" with the age they're turning; anything else is stored as-is.
 
 ## Run with Docker Compose
 
@@ -124,6 +124,7 @@ cp /mnt/user/appdata/rememberry-src/unraid/rememberry.xml /boot/config/plugins/d
 | **Add Path**: Container Path `/data`, Host Path | `/mnt/user/appdata/rememberry` |
 | **Add Variable**: Key `TZ` | e.g. `Australia/Sydney` |
 | **Add Variable**: Key `APP_PASSWORD` | your password, or leave empty |
+| **Add Variable** (optional) | any of the [birthday reminder](#birthday-reminders) variables, e.g. `NTFY_TOPIC` |
 
 Click **Apply**, then open `http://<unraid-ip>:8080`.
 

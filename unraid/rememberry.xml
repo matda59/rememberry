@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/matda59/rememberry</Support>
   <Project>https://github.com/matda59/rememberry</Project>
-  <Overview>Rememberry: a small personal app for people dossiers (photo, birthday, kids, how you met, work, notes) and a one-paragraph-a-day journal. SQLite and photo uploads live in /data.</Overview>
+  <Overview>Rememberry: a small personal app for people dossiers (photo, birthday, kids, how you met, work, notes, tags, dated quick notes) and a one-paragraph-a-day journal with moods, photos, @mentions and an on-this-day view. Optional birthday reminders via ntfy, Pushover, Discord or email. Installable as a PWA over HTTPS. SQLite and photo uploads live in /data.</Overview>
   <Category>Productivity: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL/>
