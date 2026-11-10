@@ -370,29 +370,70 @@ def photo(name: str):
     return FileResponse(path, headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
+def parse_tags(text: str) -> list[str]:
+    seen: dict[str, str] = {}
+    for part in (text or "").split(","):
+        name = " ".join(part.split())[:40]
+        if name:
+            seen.setdefault(name.lower(), name)
+    return list(seen.values())
+
+
+def set_person_tags(conn, person_id: int, text: str):
+    conn.execute("DELETE FROM person_tags WHERE person_id = ?", (person_id,))
+    for name in parse_tags(text):
+        conn.execute("INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING", (name,))
+        conn.execute("INSERT INTO person_tags (person_id, tag_id) SELECT ?, id FROM tags WHERE name = ?",
+                     (person_id, name))
+    conn.execute("DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM person_tags)")
+
+
+def tags_by_person(conn) -> dict[int, list[str]]:
+    result: dict[int, list[str]] = {}
+    for row in conn.execute("SELECT pt.person_id, t.name FROM person_tags pt JOIN tags t ON t.id = pt.tag_id "
+                            "ORDER BY t.name COLLATE NOCASE"):
+        result.setdefault(row["person_id"], []).append(row["name"])
+    return result
+
+
 @app.get("/people")
-def people_list(request: Request, q: str = ""):
-    sql = "SELECT id, name, work, birthday, photo FROM people"
+def people_list(request: Request, q: str = "", tag: str = ""):
+    sql = "SELECT id, name, work, birthday, photo FROM people WHERE 1=1"
     args: list = []
     if q:
         like = f"%{q}%"
-        sql += " WHERE " + " OR ".join(f"{f} LIKE ?" for f in PERSON_FIELDS)
-        args = [like] * len(PERSON_FIELDS)
+        sql += " AND (" + " OR ".join(f"{f} LIKE ?" for f in PERSON_FIELDS) + " OR id IN (SELECT pt.person_id " \
+               "FROM person_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name LIKE ?))"
+        args = [like] * (len(PERSON_FIELDS) + 1)
+    if tag:
+        sql += " AND id IN (SELECT pt.person_id FROM person_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name = ?)"
+        args.append(tag)
     sql += " ORDER BY name COLLATE NOCASE"
     with db.connect() as conn:
         people = conn.execute(sql, args).fetchall()
-    return render(request, "people_list.html", nav="people", people=people, q=q, birthdays=upcoming_birthdays())
+        tags = conn.execute("SELECT t.name, count(*) AS n FROM tags t JOIN person_tags pt ON pt.tag_id = t.id "
+                            "GROUP BY t.id ORDER BY t.name COLLATE NOCASE").fetchall()
+        person_tags = tags_by_person(conn)
+    return render(request, "people_list.html", nav="people", people=people, q=q, tag=tag, tags=tags,
+                  person_tags=person_tags, birthdays=upcoming_birthdays())
+
+
+def person_form(request: Request, person):
+    with db.connect() as conn:
+        all_tags = [r["name"] for r in conn.execute("SELECT name FROM tags ORDER BY name COLLATE NOCASE")]
+        tags = tags_by_person(conn).get(person["id"], []) if person else []
+    return render(request, "person_form.html", nav="people", person=person, tags=", ".join(tags), all_tags=all_tags)
 
 
 @app.get("/people/new")
 def person_new(request: Request):
-    return render(request, "person_form.html", nav="people", person=None)
+    return person_form(request, None)
 
 
 @app.post("/people")
 async def person_create(
     name: str = Form(...), birthday: str = Form(""), children: str = Form(""), met: str = Form(""),
-    work: str = Form(""), notes: str = Form(""), photo: UploadFile | None = File(None),
+    work: str = Form(""), notes: str = Form(""), tags: str = Form(""), photo: UploadFile | None = File(None),
 ):
     if not name.strip():
         raise HTTPException(400, "Name is required.")
@@ -403,6 +444,7 @@ async def person_create(
             (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(), photo_name),
         )
         new_id = cur.lastrowid
+        set_person_tags(conn, new_id, tags)
         reindex_mentions(conn)
     return redirect(f"/people/{new_id}")
 
@@ -424,19 +466,21 @@ def person_view(request: Request, person_id: int):
         notes = conn.execute(
             "SELECT id, day, body FROM person_notes WHERE person_id = ? ORDER BY day DESC, id DESC", (person_id,)
         ).fetchall()
+        tags = tags_by_person(conn).get(person_id, [])
     return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
-                  mentions=mentions, quick_notes=notes, today=today())
+                  mentions=mentions, quick_notes=notes, tags=tags, today=today())
 
 
 @app.get("/people/{person_id}/edit")
 def person_edit(request: Request, person_id: int):
-    return render(request, "person_form.html", nav="people", person=get_person(person_id))
+    return person_form(request, get_person(person_id))
 
 
 @app.post("/people/{person_id}")
 async def person_update(
     person_id: int, name: str = Form(...), birthday: str = Form(""), children: str = Form(""), met: str = Form(""),
-    work: str = Form(""), notes: str = Form(""), photo: UploadFile | None = File(None), remove_photo: str = Form(""),
+    work: str = Form(""), notes: str = Form(""), tags: str = Form(""), photo: UploadFile | None = File(None),
+    remove_photo: str = Form(""),
 ):
     person = get_person(person_id)
     if not name.strip():
@@ -453,6 +497,7 @@ async def person_update(
             (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(),
              photo_name, person_id),
         )
+        set_person_tags(conn, person_id, tags)
         if name.strip() != person["name"]:
             reindex_mentions(conn)
     return redirect(f"/people/{person_id}")
@@ -465,6 +510,7 @@ def person_delete(person_id: int):
     with db.connect() as conn:
         conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
         conn.execute("DELETE FROM person_notes WHERE person_id = ?", (person_id,))
+        set_person_tags(conn, person_id, "")
         reindex_mentions(conn)
     return redirect("/people")
 

@@ -7,9 +7,18 @@
   <a class="btn primary" href="/people/new">+ Add person</a>
 </div>
 <form method="get" action="/people" class="search">
-  <input type="search" name="q" value="{{ q }}" placeholder="Search names, work, notes&hellip;">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search names, work, notes, tags&hellip;">
+  {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
 </form>
-{% if not q and birthdays %}{{ birthday_list(birthdays) }}{% endif %}
+{% if tags %}
+<p class="chips tight tag-filter">
+  <a class="chip tag {{ 'on' if not tag }}" href="/people{{ '?q=' ~ q|urlencode if q }}">All</a>
+  {% for t in tags %}
+  <a class="chip tag {{ 'on' if t.name|lower == tag|lower }}" href="/people?tag={{ t.name|urlencode }}{{ '&q=' ~ q|urlencode if q }}">{{ t.name }} <span class="count">{{ t.n }}</span></a>
+  {% endfor %}
+</p>
+{% endif %}
+{% if not q and not tag and birthdays %}{{ birthday_list(birthdays) }}{% endif %}
 <section class="card">
   {% if people %}
   <ul class="people">
@@ -19,12 +28,13 @@
       <span class="grow">
         <strong>{{ p.name }}</strong>
         {% if p.work %}<span class="muted small block">{{ p.work[:80] }}</span>{% endif %}
+        {% if person_tags[p.id] %}<span class="muted small block">{{ person_tags[p.id]|join(" · ") }}</span>{% endif %}
       </span>
     </a></li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted">{% if q %}Nobody matches &ldquo;{{ q }}&rdquo;.{% else %}No people yet. <a href="/people/new">Add someone</a>.{% endif %}</p>
+  <p class="muted">{% if q or tag %}Nobody matches{% if q %} &ldquo;{{ q }}&rdquo;{% endif %}{% if tag %} in &ldquo;{{ tag }}&rdquo;{% endif %}.{% else %}No people yet. <a href="/people/new">Add someone</a>.{% endif %}</p>
   {% endif %}
 </section>
 {% endblock %}

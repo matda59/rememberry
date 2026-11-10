@@ -183,3 +183,8 @@ ul.quick-notes li + li { border-top: 1px solid var(--line); }
   .quick-note { flex-wrap: wrap; }
   .quick-note input[name=body] { flex-basis: 100%; order: -1; }
 }
+
+.chips.tight { margin: .35rem 0 0; }
+.chip.tag { padding: .2rem .7rem; background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.chip.tag.on, .chip.tag:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip .count { font-weight: 400; opacity: .7; }

@@ -58,6 +58,18 @@ MIGRATIONS = [
     );
     CREATE INDEX person_notes_person ON person_notes (person_id, day);
     """,
+    """
+    CREATE TABLE tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    );
+    CREATE TABLE person_tags (
+        person_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        PRIMARY KEY (person_id, tag_id)
+    );
+    CREATE INDEX person_tags_tag ON person_tags (tag_id);
+    """,
 ]
 
 

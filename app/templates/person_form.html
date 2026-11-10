@@ -17,6 +17,11 @@
       <span class="check"><input type="checkbox" name="remove_photo" value="1"> Remove current photo</span>
       {% endif %}
     </label>
+    <label>Tags
+      <input name="tags" value="{{ tags }}" placeholder="family, work, book club" list="tag-options" autocomplete="off">
+      <span class="hint">Comma-separated. Filter the people list by tag.</span>
+      <datalist id="tag-options">{% for t in all_tags %}<option value="{{ t }}">{% endfor %}</datalist>
+    </label>
     <label>Birthday
       <input name="birthday" value="{{ person.birthday if person else '' }}" placeholder="1985-04-12, or 04-12 if year unknown">
       <span class="hint">Use YYYY-MM-DD or MM-DD to show up in upcoming birthdays. Anything else is kept as plain text.</span>

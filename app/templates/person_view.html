@@ -8,6 +8,7 @@
     <div class="grow">
       <h1>{{ person.name }}</h1>
       {% if person.work %}<p class="muted">{{ person.work }}</p>{% endif %}
+      {% if tags %}<p class="chips tight">{% for t in tags %}<a class="chip tag" href="/people?tag={{ t|urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}
     </div>
   </div>
   <div class="actions">
