@@ -148,3 +148,18 @@ ul.birthdays .muted { font-size: .85rem; text-align: right; white-space: nowrap;
 @media (max-width: 420px) {
   .brand img + * { display: none; }
 }
+
+.avatar.xs { width: 22px; height: 22px; font-size: .7rem; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: .8rem; }
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .6rem .15rem .2rem;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .85rem; font-weight: 600;
+}
+.chip:hover { text-decoration: none; }
+.mention-wrap { position: relative; }
+.mention-menu {
+  position: absolute; left: 0; right: 0; z-index: 20; margin: .25rem 0 0; padding: .25rem; list-style: none;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .12);
+}
+.mention-menu li { padding: .45rem .7rem; border-radius: 8px; cursor: pointer; }
+.mention-menu li.active, .mention-menu li:hover { background: var(--accent-soft); color: var(--accent); }

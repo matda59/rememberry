@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import birthday_list %}
+{% from "_macros.html" import birthday_list, mention_chips %}
 {% block content %}
 <section class="card today">
   <div class="card-head">
@@ -10,12 +10,13 @@
     {% if saved %}<span class="pill ok">Saved</span>{% endif %}
   </div>
   <form method="post" action="/journal/{{ day.isoformat() }}">
-    <textarea name="body" rows="8" placeholder="What did you do today? How did you feel?" autofocus>{{ entry.body if entry else "" }}</textarea>
+    <textarea name="body" rows="8" placeholder="What did you do today? How did you feel? Type @ to mention someone." autofocus data-mentions>{{ entry.body if entry else "" }}</textarea>
     <div class="actions">
       <button class="primary">Save entry</button>
       {% if entry and entry.body %}<span class="muted small">Last saved {{ entry.updated_at }} UTC</span>{% endif %}
     </div>
   </form>
+  {{ mention_chips(mentioned) }}
 </section>
 
 {{ birthday_list(birthdays) }}

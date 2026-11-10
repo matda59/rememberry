@@ -32,6 +32,8 @@ templates = Jinja2Templates(directory=BASE / "templates")
 @app.on_event("startup")
 def startup():
     db.init()
+    with db.connect() as conn:
+        reindex_mentions(conn)
 
 
 def today() -> date:
@@ -140,6 +142,62 @@ def upcoming_birthdays(days: int = 30):
     return sorted(result, key=lambda r: r["in_days"])
 
 
+# ---------- mentions ----------
+
+MENTION_AT = re.compile(r"(?<![\w@])@")
+MENTION_WORD = re.compile(r"\w[\w-]*")
+
+
+def find_mentions(body: str, people) -> set[int]:
+    """People referenced as @Full Name, or @FirstName when that first name is unique."""
+    names = sorted(((p["name"].strip(), p["id"]) for p in people if p["name"].strip()), key=lambda n: -len(n[0]))
+    by_first: dict[str, set[int]] = {}
+    for name, pid in names:
+        by_first.setdefault(name.split()[0].lower(), set()).add(pid)
+    found = set()
+    for m in MENTION_AT.finditer(body or ""):
+        rest = body[m.end():]
+        for name, pid in names:
+            if rest[:len(name)].lower() == name.lower() and not rest[len(name):len(name) + 1].isalnum():
+                found.add(pid)
+                break
+        else:
+            word = MENTION_WORD.match(rest)
+            ids = by_first.get(word.group(0).lower(), set()) if word else set()
+            if len(ids) == 1:
+                found |= ids
+    return found
+
+
+def index_day_mentions(conn, day: str, body: str, people=None):
+    people = people if people is not None else conn.execute("SELECT id, name FROM people").fetchall()
+    conn.execute("DELETE FROM mentions WHERE day = ?", (day,))
+    conn.executemany("INSERT INTO mentions (day, person_id) VALUES (?, ?)",
+                     [(day, pid) for pid in find_mentions(body, people)])
+
+
+def reindex_mentions(conn):
+    people = conn.execute("SELECT id, name FROM people").fetchall()
+    conn.execute("DELETE FROM mentions")
+    for row in conn.execute("SELECT day, body FROM journal WHERE body LIKE '%@%'").fetchall():
+        index_day_mentions(conn, row["day"], row["body"], people)
+
+
+def mentioned_people(day: date):
+    with db.connect() as conn:
+        return conn.execute(
+            "SELECT p.id, p.name, p.photo FROM mentions m JOIN people p ON p.id = m.person_id "
+            "WHERE m.day = ? ORDER BY p.name COLLATE NOCASE", (day.isoformat(),)
+        ).fetchall()
+
+
+@app.get("/api/people")
+def api_people():
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, name FROM people ORDER BY name COLLATE NOCASE").fetchall()
+    return [{"id": r["id"], "name": r["name"]} for r in rows]
+
+
 # ---------- journal ----------
 
 def parse_day(day: str) -> date:
@@ -162,7 +220,8 @@ def home(request: Request):
             "SELECT day, body FROM journal WHERE day < ? AND body != '' ORDER BY day DESC LIMIT 5", (t.isoformat(),)
         ).fetchall()
     return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent,
-                  birthdays=upcoming_birthdays(), saved=request.query_params.get("saved"))
+                  birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
+                  saved=request.query_params.get("saved"))
 
 
 @app.get("/journal")
@@ -194,6 +253,7 @@ def journal_day(request: Request, day: str):
     if d == t:
         return redirect("/")
     return render(request, "journal_day.html", nav="journal", day=d, entry=get_entry(d), today=t,
+                  mentioned=mentioned_people(d),
                   prev_day=d - timedelta(days=1), next_day=d + timedelta(days=1),
                   saved=request.query_params.get("saved"))
 
@@ -207,6 +267,7 @@ def journal_save(day: str, body: str = Form("")):
             "ON CONFLICT(day) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at",
             (d.isoformat(), body.strip()),
         )
+        index_day_mentions(conn, d.isoformat(), body)
     return redirect("/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1")
 
 
@@ -280,6 +341,7 @@ async def person_create(
             (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(), photo_name),
         )
         new_id = cur.lastrowid
+        reindex_mentions(conn)
     return redirect(f"/people/{new_id}")
 
 
@@ -292,7 +354,13 @@ def person_view(request: Request, person_id: int):
         year, month, day = parsed
         nxt = next_occurrence(month, day, today())
         birthday_info = {"next": nxt, "in_days": (nxt - today()).days, "turning": (nxt.year - year) if year else None}
-    return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info)
+    with db.connect() as conn:
+        mentions = conn.execute(
+            "SELECT j.day, j.body FROM mentions m JOIN journal j ON j.day = m.day "
+            "WHERE m.person_id = ? ORDER BY j.day DESC", (person_id,)
+        ).fetchall()
+    return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
+                  mentions=mentions)
 
 
 @app.get("/people/{person_id}/edit")
@@ -320,6 +388,8 @@ async def person_update(
             (name.strip(), birthday.strip(), children.strip(), met.strip(), work.strip(), notes.strip(),
              photo_name, person_id),
         )
+        if name.strip() != person["name"]:
+            reindex_mentions(conn)
     return redirect(f"/people/{person_id}")
 
 
@@ -329,4 +399,5 @@ def person_delete(person_id: int):
     delete_photo(person["photo"])
     with db.connect() as conn:
         conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
+        reindex_mentions(conn)
     return redirect("/people")

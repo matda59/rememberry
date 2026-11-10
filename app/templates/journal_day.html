@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mention_chips %}
 {% block title %}{{ day.isoformat() }} · Rememberry{% endblock %}
 {% block content %}
 <section class="card">
@@ -13,11 +14,12 @@
     {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
   </div>
   <form method="post" action="/journal/{{ day.isoformat() }}">
-    <textarea name="body" rows="10" placeholder="Nothing written for this day.">{{ entry.body if entry else "" }}</textarea>
+    <textarea name="body" rows="10" placeholder="Nothing written for this day." data-mentions>{{ entry.body if entry else "" }}</textarea>
     <div class="actions">
       <button class="primary">Save</button>
       {% if saved %}<span class="pill ok">Saved</span>{% endif %}
     </div>
   </form>
+  {{ mention_chips(mentioned) }}
 </section>
 {% endblock %}

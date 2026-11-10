@@ -6,6 +6,14 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro mention_chips(people) -%}
+{% if people %}
+<p class="chips"><span class="muted small">Mentioned:</span>
+  {% for p in people %}<a class="chip" href="/people/{{ p.id }}">{{ avatar(p, "xs") }}{{ p.name }}</a>{% endfor %}
+</p>
+{% endif %}
+{%- endmacro %}
+
 {% macro when(in_days) -%}
 {% if in_days == 0 %}today{% elif in_days == 1 %}tomorrow{% else %}in {{ in_days }} days{% endif %}
 {%- endmacro %}

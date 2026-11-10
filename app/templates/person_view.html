@@ -29,6 +29,17 @@
   <h2>Notes</h2>
   <div class="notes pre">{{ person.notes }}</div>
   {% endif %}
+  {% if mentions %}
+  <h2>Mentioned in the journal</h2>
+  <ul class="entries">
+    {% for e in mentions %}
+    <li><a href="/journal/{{ e.day }}">
+      <span class="date">{{ e.day }}</span>
+      <span class="excerpt">{{ e.body[:160] }}{% if e.body|length > 160 %}&hellip;{% endif %}</span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
   <p class="muted small">Added {{ person.created_at[:10] }} &middot; updated {{ person.updated_at[:10] }}</p>
 </section>
 {% endblock %}
