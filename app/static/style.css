@@ -278,3 +278,25 @@ button[disabled]:hover { border-color: var(--line); }
 @media (max-width: 560px) { .account-forms { grid-template-columns: 1fr; } }
 .stack label.check { display: flex; font-weight: 400; }
 input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+
+/* Primary tabs: inline in the top bar on wide screens, a bottom tab bar on phones. */
+.tabs { margin-left: auto; }
+.tabs svg { display: none; width: 1.35rem; height: 1.35rem; }
+.tools { gap: .1rem; }
+@media (max-width: 640px) {
+  body.has-tabs { padding-bottom: calc(4.2rem + env(safe-area-inset-bottom)); }
+  /* backdrop-filter would make the header the containing block of the fixed tab bar. */
+  .has-tabs .topbar { backdrop-filter: none; background: var(--card); }
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    padding: .3rem .25rem calc(.3rem + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line);
+  }
+  .tabs a { display: flex; flex-direction: column; align-items: center; gap: .1rem; padding: .3rem 0; border-radius: 12px; font-size: .72rem; }
+  .tabs a.active { background: transparent; }
+  .tabs a.active svg { background: var(--accent-soft); border-radius: 999px; }
+  .tabs svg { display: block; width: 2.6rem; height: 1.7rem; padding: .2rem .65rem; }
+  .has-tabs .brand img + * { display: inline; }
+}

@@ -14,14 +14,26 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
-<body>
+<body class="{{ 'has-tabs' if nav != 'login' }}">
   <header class="topbar">
     <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="26" height="26"><span>Rememberry</span></a>
-    <nav>
+    {% if nav != "login" %}
+    <nav class="tabs" aria-label="Main">
+      {% for key, href, label, icon in [
+        ("home", "/", "Today", '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'),
+        ("journal", "/journal", "Journal", '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>'),
+        ("calendar", "/journal/calendar", "Calendar", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+        ("people", "/people", "People", '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>'),
+      ] %}
+      <a href="{{ href }}" class="{{ 'active' if nav == key }}" {{ 'aria-current=page' if nav == key }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ icon|safe }}</svg>
+        <span>{{ label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <nav class="tools" aria-label="Account and settings">
       {% if nav != "login" %}
-      <a href="/" class="{{ 'active' if nav == 'today' }}">Today</a>
-      <a href="/journal" class="{{ 'active' if nav == 'journal' }}">Journal</a>
-      <a href="/people" class="{{ 'active' if nav == 'people' }}">People</a>
       <a href="/settings" class="icon {{ 'active' if nav == 'settings' }}" title="Settings" aria-label="Settings">&#9881;&#xFE0E;</a>
       {% endif %}
       {% set next_theme = {"auto": "light", "light": "dark", "dark": "auto"}[theme] %}

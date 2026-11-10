@@ -563,7 +563,7 @@ def home(request: Request):
             "ORDER BY day DESC",
             (t.isoformat()[5:], t.isoformat()),
         ).fetchall()
-    return render(request, "home.html", nav="today", day=t, entry=get_entry(t), recent=recent, on_this_day=on_this_day,
+    return render(request, "home.html", nav="home", day=t, entry=get_entry(t), recent=recent, on_this_day=on_this_day,
                   birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
                   saved=request.query_params.get("saved"))
 
@@ -610,7 +610,7 @@ def journal_calendar(request: Request, month: str = ""):
     for r in rows:
         if r["mood"] and r["day"][:7] == first.isoformat()[:7]:
             counts[r["mood"]] = counts.get(r["mood"], 0) + 1
-    return render(request, "journal_calendar.html", nav="journal", first=first, weeks=weeks, entries=entries,
+    return render(request, "journal_calendar.html", nav="calendar", first=first, weeks=weeks, entries=entries,
                   today=t, prev_month=prev_month, next_month=next_month if next_month <= t else None,
                   mood_counts=sorted(counts.items(), key=lambda kv: -kv[1]))
 
