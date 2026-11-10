@@ -4,6 +4,7 @@ A small, self-hosted personal app with two things in it:
 
 - **People**: a dossier per person with a photo, birthday, children, when/where you met, job/work and a big free-text notes field. List, search across every field, and see birthdays coming up in the next 30 days.
 - **Journal**: one short entry per day. Today's entry is on the home page, with **On this day** entries from the same date in previous years; browse, search and edit past days.
+- **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
 - **@mentions**: type `@` in a journal entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
 
 Single user, one container, one port, everything stored in `/data`.
@@ -37,6 +38,27 @@ The database schema is versioned. On startup the app applies any pending migrati
 | `TZ` | `UTC` | Timezone that decides what "today" is, e.g. `Australia/Sydney`. |
 | `SECRET_KEY` | derived from password | Optional random string used to sign the login cookie. |
 | `PORT` | `8080` | Port inside the container. |
+
+### Birthday reminders
+
+All optional. Set any channels you want; with none set, reminders are off. Once a day, from `REMINDER_HOUR` in `TZ`, the app sends one message listing birthdays that are today or exactly `REMINDER_DAYS_AHEAD` days away. If the container is down all of that day, that day's reminder is skipped.
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `REMINDER_DAYS_AHEAD` | `3` | How many days ahead to warn (you also get a message on the day). |
+| `REMINDER_HOUR` | `9` | Earliest hour (0-23, local `TZ`) to send the daily reminder. |
+| `NTFY_URL` | `https://ntfy.sh` | ntfy server, or a full topic URL like `https://ntfy.example.com/birthdays`. |
+| `NTFY_TOPIC` | empty | ntfy topic, appended to `NTFY_URL`. Set this or a full `NTFY_URL` to turn ntfy on. |
+| `NTFY_TOKEN` | empty | Access token for a protected ntfy topic. |
+| `PUSHOVER_TOKEN` | empty | Pushover application API token. |
+| `PUSHOVER_USER` | empty | Pushover user (or group) key. |
+| `DISCORD_WEBHOOK_URL` | empty | Discord channel webhook URL. |
+| `SMTP_HOST` | empty | Mail server. Email is on when this and `SMTP_TO` are set. |
+| `SMTP_PORT` | `587` (`465` for `ssl`) | Mail server port. |
+| `SMTP_SECURITY` | `starttls` | `starttls`, `ssl`, or `none`. |
+| `SMTP_USER` / `SMTP_PASSWORD` | empty | Login, if your server needs one. |
+| `SMTP_FROM` | `SMTP_USER` | From address. |
+| `SMTP_TO` | empty | Where to send reminders (comma-separate several). |
 
 Birthdays are free text. Write them as `YYYY-MM-DD` (or `MM-DD` if you don't know the year) and they show up in "Upcoming birthdays" with the age they're turning; anything else is stored as-is.
 

@@ -26,4 +26,19 @@
   <Config Name="Password" Target="APP_PASSWORD" Default="" Mode="" Description="Optional. If set, the app asks for this password. Leave empty for no login." Type="Variable" Display="always" Required="false" Mask="true"></Config>
   <Config Name="Timezone" Target="TZ" Default="UTC" Mode="" Description="Decides what 'today' is for the journal, e.g. Australia/Sydney." Type="Variable" Display="always" Required="false" Mask="false">UTC</Config>
   <Config Name="Secret key" Target="SECRET_KEY" Default="" Mode="" Description="Optional. Random string used to sign the login cookie. Defaults to a value derived from the password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Reminder days ahead" Target="REMINDER_DAYS_AHEAD" Default="3" Mode="" Description="Birthday reminders are sent this many days ahead and on the day." Type="Variable" Display="always" Required="false" Mask="false">3</Config>
+  <Config Name="Reminder hour" Target="REMINDER_HOUR" Default="9" Mode="" Description="Earliest hour (0-23, in TZ) to send the daily birthday reminder." Type="Variable" Display="advanced" Required="false" Mask="false">9</Config>
+  <Config Name="ntfy URL" Target="NTFY_URL" Default="" Mode="" Description="Optional. ntfy server (default https://ntfy.sh) or a full topic URL." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="ntfy topic" Target="NTFY_TOPIC" Default="" Mode="" Description="Optional. ntfy topic to send birthday reminders to." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="ntfy token" Target="NTFY_TOKEN" Default="" Mode="" Description="Optional. Access token for a protected ntfy topic." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Pushover app token" Target="PUSHOVER_TOKEN" Default="" Mode="" Description="Optional. Pushover application API token." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Pushover user key" Target="PUSHOVER_USER" Default="" Mode="" Description="Optional. Pushover user or group key." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Discord webhook URL" Target="DISCORD_WEBHOOK_URL" Default="" Mode="" Description="Optional. Discord channel webhook for birthday reminders." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SMTP host" Target="SMTP_HOST" Default="" Mode="" Description="Optional. Mail server for email reminders (needs SMTP_TO too)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP port" Target="SMTP_PORT" Default="" Mode="" Description="Optional. Defaults to 587, or 465 when SMTP_SECURITY is ssl." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP security" Target="SMTP_SECURITY" Default="starttls" Mode="" Description="starttls, ssl or none." Type="Variable" Display="advanced" Required="false" Mask="false">starttls</Config>
+  <Config Name="SMTP user" Target="SMTP_USER" Default="" Mode="" Description="Optional. SMTP login." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP password" Target="SMTP_PASSWORD" Default="" Mode="" Description="Optional. SMTP password." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="SMTP from" Target="SMTP_FROM" Default="" Mode="" Description="Optional. From address; defaults to SMTP_USER." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="SMTP to" Target="SMTP_TO" Default="" Mode="" Description="Optional. Address(es) to email reminders to, comma-separated." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
 </Container>

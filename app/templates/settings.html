@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Settings · Rememberry{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Settings</h1>
+  <p class="muted">Configured with environment variables on the container; see the README.</p>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>Birthday reminders</h2>
+    <form method="post" action="/settings/test-notification"><button>Send test notification</button></form>
+  </div>
+  <p>Checked daily from {{ "%02d:00"|format(hour) }} ({{ tz }}). Sends one message for birthdays today and in {{ days_ahead }} day{{ "s" if days_ahead != 1 }}.
+    {% if last_check %}<span class="muted">Last checked {{ last_check }}.</span>{% endif %}</p>
+  {% if results %}
+  <ul class="results">
+    {% for name, error in results %}
+    <li class="{{ 'error' if error else 'ok' }}"><strong>{{ name }}</strong>: {{ error or "sent" }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <table class="channels">
+    {% for name, configured, description in channels %}
+    <tr>
+      <th>{{ name }}</th>
+      <td>{% if configured %}<span class="pill ok">On</span> <span class="muted small">{{ description }}</span>{% else %}<span class="muted small">Not configured</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

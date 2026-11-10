@@ -42,7 +42,25 @@ MIGRATIONS = [
     );
     CREATE INDEX mentions_person ON mentions (person_id, day);
     """,
+    """
+    CREATE TABLE settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT ''
+    );
+    """,
 ]
+
+
+def get_setting(key: str, default: str = "") -> str:
+    with connect() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str):
+    with connect() as conn:
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
 
 
 def init():
@@ -56,7 +74,7 @@ def init():
     if existed:
         backup = DB_PATH.with_name(f"{DB_PATH.name}.v{version}-{datetime.now():%Y%m%d-%H%M%S}.bak")
         backup_to(backup)
-        log.warning("Upgrading database from v%d to v%d (backup: %s)", version, len(MIGRATIONS), backup)
+        log.info("Upgrading database from v%d to v%d (backup: %s)", version, len(MIGRATIONS), backup)
     for target in range(version + 1, len(MIGRATIONS) + 1):
         conn = sqlite3.connect(DB_PATH)
         try:

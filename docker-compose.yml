@@ -12,3 +12,6 @@ services:
       TZ: "UTC"  # e.g. Australia/Sydney; decides what "today" is
       # Leave empty to disable the login screen.
       APP_PASSWORD: ""
+      # Birthday reminders (all optional; see README for Pushover, Discord and SMTP):
+      # REMINDER_DAYS_AHEAD: "3"
+      # NTFY_TOPIC: "my-secret-birthday-topic"

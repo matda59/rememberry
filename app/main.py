@@ -1,8 +1,11 @@
 import hashlib
 import hmac
+import logging
 import os
 import re
 import secrets
+import threading
+import time
 import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -13,7 +16,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import db
+from . import db, notify
 
 BASE = Path(__file__).parent
 PASSWORD = os.environ.get("APP_PASSWORD", "")
@@ -23,6 +26,10 @@ COOKIE = "rememberry_auth"
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic"}
 PERSON_FIELDS = ("name", "birthday", "children", "met", "work", "notes")
+REMINDER_DAYS_AHEAD = int(os.environ.get("REMINDER_DAYS_AHEAD") or 3)
+REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR") or 9)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
+log = logging.getLogger("rememberry")
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
@@ -34,6 +41,7 @@ def startup():
     db.init()
     with db.connect() as conn:
         reindex_mentions(conn)
+    threading.Thread(target=reminder_loop, daemon=True).start()
 
 
 def today() -> date:
@@ -140,6 +148,56 @@ def upcoming_birthdays(days: int = 30):
                 "in_days": delta, "turning": (nxt.year - year) if year else None,
             })
     return sorted(result, key=lambda r: r["in_days"])
+
+
+# ---------- reminders ----------
+
+def birthday_message(b) -> str:
+    who = f"{b['name']} turns {b['turning']}" if b["turning"] else f"{b['name']}'s birthday is"
+    when = "today" if b["in_days"] == 0 else "tomorrow" if b["in_days"] == 1 else f"in {b['in_days']} days"
+    return f"{who} {when} ({b['date']:%a %d %b})"
+
+
+def send_birthday_reminders():
+    """Once a day after REMINDER_HOUR: one message covering birthdays today and REMINDER_DAYS_AHEAD days out."""
+    now = datetime.now(TZ)
+    if not notify.any_configured() or now.hour < REMINDER_HOUR:
+        return
+    if db.get_setting("reminders_sent_for") == now.date().isoformat():
+        return
+    db.set_setting("reminders_sent_for", now.date().isoformat())
+    due = [b for b in upcoming_birthdays(REMINDER_DAYS_AHEAD) if b["in_days"] in (0, REMINDER_DAYS_AHEAD)]
+    if not due:
+        return
+    title = "Birthday reminder" if len(due) == 1 else f"{len(due)} birthday reminders"
+    for name, error in notify.send_all(title, "\n".join(birthday_message(b) for b in due)):
+        if error:
+            log.warning("Birthday reminder via %s failed: %s", name, error)
+        else:
+            log.info("Birthday reminder sent via %s", name)
+
+
+def reminder_loop():
+    while True:
+        try:
+            send_birthday_reminders()
+        except Exception:
+            log.exception("Birthday reminder check failed")
+        time.sleep(600)
+
+
+@app.get("/settings")
+def settings_page(request: Request, results=None):
+    return render(request, "settings.html", nav="settings", channels=notify.channels(), results=results,
+                  days_ahead=REMINDER_DAYS_AHEAD, hour=REMINDER_HOUR, tz=str(TZ),
+                  last_check=db.get_setting("reminders_sent_for"))
+
+
+@app.post("/settings/test-notification")
+def settings_test(request: Request):
+    results = notify.send_all("Rememberry test", "Test notification from Rememberry. If you can read this, "
+                              "birthday reminders will reach you here.")
+    return settings_page(request, results=results or [("No channel configured", "Set one of the env vars below.")])
 
 
 # ---------- mentions ----------
