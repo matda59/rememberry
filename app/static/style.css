@@ -183,6 +183,28 @@ ul.birthdays .muted { font-size: .85rem; text-align: right; white-space: nowrap;
 .mention-menu li { padding: .45rem .7rem; border-radius: 8px; cursor: pointer; }
 .mention-menu li.active, .mention-menu li:hover { background: var(--accent-soft); color: var(--accent); }
 
+.dictate-bar { display: flex; align-items: center; gap: .55rem .75rem; margin-bottom: .45rem; flex-wrap: wrap; }
+.dictate-note { margin: 0; }
+.dictate {
+  padding: .35rem .8rem; font-size: .9rem;
+}
+.dictate svg { width: 1.05rem; height: 1.05rem; flex: none; }
+.dictate-dot { display: none; width: .55rem; height: .55rem; border-radius: 50%; background: currentColor; flex: none; }
+.dictate.is-recording {
+  color: var(--danger); border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--card));
+}
+.dictate.is-recording .dictate-dot { display: inline-block; animation: dictate-pulse 1.1s ease-in-out infinite; }
+.dictate.is-recording svg { display: none; }
+.mention-wrap.is-listening textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+@keyframes dictate-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .dictate.is-recording .dictate-dot { animation: none; }
+}
+
 table.channels { width: 100%; border-collapse: collapse; margin-top: .6rem; }
 .channels th, .channels td { text-align: left; padding: .5rem 0; border-top: 1px solid var(--line); }
 .channels th { width: 7rem; font-size: .92rem; }

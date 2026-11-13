@@ -14,7 +14,7 @@
     {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
   </div>
   <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <textarea name="body" rows="10" placeholder="Nothing written for this day." data-mentions>{{ entry.body if entry else "" }}</textarea>
+    <textarea name="body" rows="10" placeholder="Nothing written for this day." data-mentions data-dictate>{{ entry.body if entry else "" }}</textarea>
     {{ entry_extras(entry, moods) }}
     <div class="actions">
       <button class="primary">Save</button>

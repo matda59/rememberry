@@ -42,7 +42,7 @@
       <div class="actions"><a class="btn" href="/?edit=1#today">Edit entry</a><span class="muted small">Last saved {{ entry.updated_at }} UTC</span></div>
       {% else %}
       <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <textarea name="body" rows="6" placeholder="What did you do today? How did you feel? Type @ to mention someone." {{ "autofocus" if editing }} data-mentions>{{ entry.body if entry else "" }}</textarea>
+        <textarea name="body" rows="6" placeholder="What did you do today? How did you feel? Type @ to mention someone." {{ "autofocus" if editing }} data-mentions data-dictate>{{ entry.body if entry else "" }}</textarea>
         {{ entry_extras(entry, moods) }}
         <div class="actions">
           <button class="primary">Save entry</button>

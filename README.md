@@ -9,6 +9,7 @@ A small, self-hosted personal app with two things in it:
 - **Journal**: one short entry per day. The home page is a dashboard: today's entry (write it, or a preview once written), a mood calendar for the month, streak and counts, upcoming birthdays, recently added or updated people, and quick actions, with **On this day** entries from the same date in previous years; browse, search and edit past days.
   - **@mentions**: type `@` in an entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
   - **Moods and photos**: pick a mood emoji and attach one photo per day. The journal calendar shows each day's mood for the month.
+  - **Dictation**: the microphone on today's entry and on a journal day types as you speak in your browser's language; it needs Chrome or Edge over HTTPS, and the audio never leaves the browser.
 
 Plus a one-click **backup zip** (database + photos) and **Markdown export** of the journal on the settings page, and it's an **installable PWA** for your phone's home screen (see [Install on your phone](#install-on-your-phone)).
 
