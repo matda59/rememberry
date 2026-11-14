@@ -361,8 +361,11 @@ document.querySelectorAll("form[data-saving]").forEach((form) => {
       }
     });
   });
-  const params = new URLSearchParams(location.search);
-  if (location.hash === "#today" || params.has("edit")) focusToday();
+  const want = () => location.hash === "#today" || new URLSearchParams(location.search).has("edit");
+  // Hash scrolling runs after this script and leaves focus on the page, so focus again once the load settles.
+  const later = () => { if (want()) focusToday(); };
+  window.addEventListener("load", () => window.setTimeout(later, 0));
+  window.addEventListener("hashchange", later);
 })();
 
 // "/" focuses the header search unless the user is already typing in a field.
