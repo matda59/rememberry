@@ -730,6 +730,21 @@ def reindex_mentions(conn):
         index_day_mentions(conn, row["day"], row["body"], people)
 
 
+QUIET_DAYS = 90
+
+
+def not_mentioned_lately(conn, ref: date, days: int = QUIET_DAYS):
+    """People @mentioned on an earlier day, and not in the last `days` days."""
+    cutoff = (ref - timedelta(days=days)).isoformat()
+    return conn.execute(
+        "SELECT p.id, p.name, p.photo, MAX(m.day) AS last_day "
+        "FROM mentions m JOIN people p ON p.id = m.person_id "
+        "GROUP BY p.id HAVING MAX(m.day) < ? "
+        "ORDER BY last_day, p.name COLLATE NOCASE",
+        (cutoff,),
+    ).fetchall()
+
+
 def mentioned_people(day: date):
     with db.connect() as conn:
         return conn.execute(
@@ -898,6 +913,7 @@ def home(request: Request):
         ).fetchall()
         weeks, month_entries = month_grid(conn, first)
         occasions = occasions_on(conn, [d for week in weeks for d in week])
+        quiet_people = not_mentioned_lately(conn, t)
         stats = {
             "streak": writing_streak(conn, t),
             "month": sum(1 for d in month_entries if d[:7] == first.isoformat()[:7]),
@@ -908,6 +924,7 @@ def home(request: Request):
     written = bool(entry and (entry["body"] or entry["mood"] or entry["photo"]))
     return render(request, "home.html", nav="home", day=t, entry=entry, written=written, recent=recent,
                   on_this_day=on_this_day, upcoming=_dashboard_upcoming(), mentioned=mentioned_people(t),
+                  quiet_people=quiet_people, quiet_days=QUIET_DAYS,
                   recent_people=recent_people, pinned_people=pinned_people, weeks=weeks, month_entries=month_entries,
                   occasions=occasions, first=first, stats=stats,
                   greeting=greeting(), editing=bool(request.query_params.get("edit")),

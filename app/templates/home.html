@@ -131,6 +131,21 @@
 
     {{ birthday_list(upcoming) }}
 
+    {% if quiet_people %}
+    <section class="card">
+      <h2>Not mentioned lately</h2>
+      <p class="muted small">@mentioned in the journal, and not in the last {{ quiet_days }} days.</p>
+      <ul class="people">
+        {% for p in quiet_people %}
+        <li><a href="/people/{{ p.id }}">
+          {{ avatar(p, "sm") }}
+          <span class="grow"><strong>{{ p.name }}</strong><span class="muted small block">Last mentioned {{ p.last_day }}</span></span>
+        </a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
     <section class="card">
       <div class="card-head">
         <h2>Recently added &amp; updated people</h2>
