@@ -36,6 +36,20 @@ MOODS = {"😄": "Great", "🙂": "Good", "😐": "Okay", "😕": "Meh", "😢":
 NONEMPTY_ENTRY = "(body != '' OR photo != '' OR mood != '')"
 REMINDER_DAYS_AHEAD = int(os.environ.get("REMINDER_DAYS_AHEAD") or 3)
 REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR") or 9)
+
+
+def env_hour(name: str, default: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        hour = int(raw)
+    except ValueError:
+        return default
+    return hour if 0 <= hour <= 23 else default
+
+
+JOURNAL_NUDGE_HOUR = env_hour("JOURNAL_NUDGE_HOUR", 20)
 OPEN_PATHS = ("/static/", "/healthz", "/manifest.webmanifest", "/sw.js", "/theme")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
 log = logging.getLogger("rememberry")
@@ -500,12 +514,38 @@ def send_birthday_reminders():
             log.info("Birthday reminder sent via %s", name)
 
 
+def entry_written(day: date) -> bool:
+    entry = get_entry(day)
+    return bool(entry and (entry["body"] or entry["mood"] or entry["photo"]))
+
+
+def send_journal_nudge():
+    """Once a day from JOURNAL_NUDGE_HOUR: one reminder if today's journal is still empty."""
+    now = datetime.now(TZ)
+    if not notify.any_configured() or now.hour < JOURNAL_NUDGE_HOUR:
+        return
+    if db.get_setting("journal_nudge_sent_for") == now.date().isoformat():
+        return
+    db.set_setting("journal_nudge_sent_for", now.date().isoformat())
+    if entry_written(now.date()):
+        return
+    for name, error in notify.send_all("Journal reminder", "Today's journal is still empty.", ntfy_tags="memo"):
+        if error:
+            log.warning("Journal nudge via %s failed: %s", name, error)
+        else:
+            log.info("Journal nudge sent via %s", name)
+
+
 def reminder_loop():
     while True:
         try:
             send_birthday_reminders()
         except Exception:
             log.exception("Birthday reminder check failed")
+        try:
+            send_journal_nudge()
+        except Exception:
+            log.exception("Journal nudge check failed")
         try:
             purge_expired_trash()
         except Exception:
@@ -529,7 +569,8 @@ def settings_page(request: Request, results=None, account_error: str = "", statu
     user = request.state.user
     return render(request, "settings.html", status_code=status_code, nav="settings", channels=notify.channels(),
                   results=results, days_ahead=REMINDER_DAYS_AHEAD, hour=REMINDER_HOUR, tz=str(TZ),
-                  last_check=db.get_setting("reminders_sent_for"), account_error=account_error,
+                  last_check=db.get_setting("reminders_sent_for"), nudge_hour=JOURNAL_NUDGE_HOUR,
+                  nudge_last=db.get_setting("journal_nudge_sent_for"), account_error=account_error,
                   account_message=ACCOUNT_MESSAGES.get(request.query_params.get("account", ""), ""),
                   other_sessions=auth.count_other_sessions(user["id"], request.cookies.get(auth.SESSION_COOKIE, ""))
                   if user else 0)
@@ -538,7 +579,7 @@ def settings_page(request: Request, results=None, account_error: str = "", statu
 @app.post("/settings/test-notification")
 def settings_test(request: Request):
     results = notify.send_all("Rememberry test", "Test notification from Rememberry. If you can read this, "
-                              "birthday reminders will reach you here.")
+                              "reminders will reach you here.")
     return settings_page(request, results=results or [("No channel configured", "Set one of the env vars below.")])
 
 

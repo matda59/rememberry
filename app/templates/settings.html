@@ -69,6 +69,8 @@
   </div>
   <p>Checked daily from {{ "%02d:00"|format(hour) }} ({{ tz }}). Sends one message for birthdays and meeting anniversaries that are today or in {{ days_ahead }} day{{ "s" if days_ahead != 1 }}.
     {% if last_check %}<span class="muted">Last checked {{ last_check }}.</span>{% endif %}</p>
+  <p>Evening journal nudge: if today's entry is still empty, one reminder is sent at {{ "%02d:00"|format(nudge_hour) }} ({{ tz }}) on the channels above. Change the hour with <code>JOURNAL_NUDGE_HOUR</code> (default 20). Nothing is sent when no channel is on, and not more than once a day.
+    {% if nudge_last %}<span class="muted">Last checked {{ nudge_last }}.</span>{% endif %}</p>
   {% if results %}
   <ul class="results">
     {% for name, error in results %}

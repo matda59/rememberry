@@ -28,8 +28,8 @@ def ntfy_url() -> str:
     return url
 
 
-def send_ntfy(title: str, message: str):
-    headers = {"Tags": "birthday"}
+def send_ntfy(title: str, message: str, tags: str = "birthday"):
+    headers = {"Tags": tags}
     if env("NTFY_TOKEN"):
         headers["Authorization"] = "Bearer " + env("NTFY_TOKEN")
     # Title goes in the query string: HTTP headers can't carry non-Latin-1 names.
@@ -85,14 +85,17 @@ def any_configured() -> bool:
     return any(enabled() for _, enabled, _, _ in CHANNELS)
 
 
-def send_all(title: str, message: str):
+def send_all(title: str, message: str, ntfy_tags: str = "birthday"):
     """Sends to every configured channel. Returns [(name, error or None)]."""
     results = []
     for name, enabled, _, send in CHANNELS:
         if not enabled():
             continue
         try:
-            send(title, message)
+            if send is send_ntfy:
+                send(title, message, ntfy_tags)
+            else:
+                send(title, message)
             results.append((name, None))
         except Exception as exc:  # report every channel, don't let one failure stop the rest
             results.append((name, f"{type(exc).__name__}: {exc}"))

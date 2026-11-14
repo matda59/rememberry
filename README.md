@@ -88,10 +88,13 @@ Prefix each with `docker exec -it rememberry`. For scripts, `reset-password --pa
 
 All optional. Set any channels you want; with none set, reminders are off. Once a day, from `REMINDER_HOUR` in `TZ`, the app sends one message listing birthdays that are today or exactly `REMINDER_DAYS_AHEAD` days away. If the container is down all of that day, that day's reminder is skipped.
 
+If today's journal entry is still empty, the same channels get one evening nudge at `JOURNAL_NUDGE_HOUR` (default `20`, in `TZ`). Nothing is sent when no channel is set, and it is not repeated the same day.
+
 | Env var | Default | Purpose |
 | --- | --- | --- |
 | `REMINDER_DAYS_AHEAD` | `3` | How many days ahead to warn (you also get a message on the day). |
 | `REMINDER_HOUR` | `9` | Earliest hour (0-23, local `TZ`) to send the daily reminder. |
+| `JOURNAL_NUDGE_HOUR` | `20` | Hour (0-23, in `TZ`) to nudge you if today's journal is still empty. |
 | `NTFY_URL` | `https://ntfy.sh` | ntfy server, or a full topic URL like `https://ntfy.example.com/birthdays`. |
 | `NTFY_TOPIC` | empty | ntfy topic, appended to `NTFY_URL`. Set this or a full `NTFY_URL` to turn ntfy on. |
 | `NTFY_TOKEN` | empty | Access token for a protected ntfy topic. |
