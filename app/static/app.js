@@ -341,6 +341,30 @@ document.querySelectorAll("form[data-saving]").forEach((form) => {
   });
 });
 
+(() => {
+  const focusToday = () => {
+    const box = document.querySelector("#today textarea[name=body]");
+    if (!box) return false;
+    box.focus();
+    const end = box.value.length;
+    try { box.setSelectionRange(end, end); } catch (err) { /* ignore */ }
+    document.getElementById("today")?.scrollIntoView({ block: "nearest" });
+    return true;
+  };
+  document.querySelectorAll("[data-focus-today]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (!focusToday()) return;
+      const url = new URL(link.href, location.origin);
+      if (url.pathname === location.pathname && url.search === location.search) {
+        event.preventDefault();
+        if (location.hash !== "#today") history.pushState(null, "", "#today");
+      }
+    });
+  });
+  const params = new URLSearchParams(location.search);
+  if (location.hash === "#today" || params.has("edit")) focusToday();
+})();
+
 // "/" focuses the header search unless the user is already typing in a field.
 (() => {
   const typing = (el) => {
