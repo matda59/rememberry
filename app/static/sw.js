@@ -1,5 +1,5 @@
 // Network-first pages with an offline fallback; static assets served from cache and refreshed in the background.
-const CACHE = "rememberry-v11";
+const CACHE = "rememberry-v12";
 const OFFLINE = "/static/offline.html";
 const PRECACHE = [OFFLINE, "/static/style.css", "/static/app.js", "/static/icons/favicon-32.png", "/static/icons/icon-192.png"];
 

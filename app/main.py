@@ -32,6 +32,7 @@ THEMES = ("auto", "light", "dark")
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_TYPES = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic"}
 PERSON_FIELDS = ("name", "birthday", "children", "met", "work", "notes")
+LINK_LABEL_MAX = 40
 MOODS = {"😄": "Great", "🙂": "Good", "😐": "Okay", "😕": "Meh", "😢": "Sad", "😠": "Angry", "😴": "Tired", "🤒": "Unwell"}
 NONEMPTY_ENTRY = "(body != '' OR photo != '' OR mood != '')"
 REMINDER_DAYS_AHEAD = int(os.environ.get("REMINDER_DAYS_AHEAD") or 3)
@@ -1156,8 +1157,12 @@ async def person_create(
     return redirect(f"/people/{new_id}?saved=1")
 
 
-@app.get("/people/{person_id}")
-def person_view(request: Request, person_id: int):
+def clean_link_label(text: str) -> str:
+    return " ".join((text or "").split())
+
+
+def person_page(request: Request, person_id: int, status_code: int = 200, link_error: str = "",
+                link_label: str = "", link_other: int = 0):
     person = get_person(person_id)
     met_on = parse_met_date(person["met"])
     parsed = parse_birthday(person["birthday"])
@@ -1175,10 +1180,75 @@ def person_view(request: Request, person_id: int):
             "SELECT id, day, body FROM person_notes WHERE person_id = ? ORDER BY day DESC, id DESC", (person_id,)
         ).fetchall()
         tags = tags_by_person(conn).get(person_id, [])
-    return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
-                  saved=request.query_params.get("saved", ""),
+        links = conn.execute(
+            "SELECT l.id AS link_id, l.label, p.id, p.name, p.photo FROM person_links l "
+            "JOIN people p ON p.id = CASE WHEN l.person_a = ? THEN l.person_b ELSE l.person_a END "
+            "WHERE l.person_a = ? OR l.person_b = ? ORDER BY p.name COLLATE NOCASE, l.id",
+            (person_id, person_id, person_id),
+        ).fetchall()
+        linkable = conn.execute(
+            "SELECT id, name FROM people WHERE id != ? AND id NOT IN ("
+            "SELECT person_b FROM person_links WHERE person_a = ? "
+            "UNION SELECT person_a FROM person_links WHERE person_b = ?) "
+            "ORDER BY name COLLATE NOCASE",
+            (person_id, person_id, person_id),
+        ).fetchall()
+    return render(request, "person_view.html", status_code=status_code, nav="people", person=person,
+                  birthday_info=birthday_info, saved=request.query_params.get("saved", ""),
                   met_phrase=met_phrase(met_on, today()) if met_on else None,
-                  mentions=mentions, quick_notes=notes, tags=tags, today=today())
+                  mentions=mentions, quick_notes=notes, tags=tags, today=today(),
+                  links=links, linkable=linkable, link_error=link_error, link_label=link_label,
+                  link_other=link_other)
+
+
+@app.get("/people/{person_id}")
+def person_view(request: Request, person_id: int):
+    return person_page(request, person_id)
+
+
+@app.post("/people/{person_id}/links")
+def person_link_add(request: Request, person_id: int, other_id: str = Form(""), label: str = Form("")):
+    get_person(person_id)
+    label = clean_link_label(label)
+    try:
+        other = int(other_id)
+    except (TypeError, ValueError):
+        other = 0
+    error = ""
+    if not other:
+        error = "Pick a person to link."
+    elif other == person_id:
+        error = "A person can't be linked to themselves."
+    elif not label:
+        error = "Add a short label."
+    elif len(label) > LINK_LABEL_MAX:
+        error = f"Keep the label to {LINK_LABEL_MAX} characters."
+    else:
+        a, b = sorted((person_id, other))
+        with db.connect() as conn:
+            if not conn.execute("SELECT 1 FROM people WHERE id = ?", (other,)).fetchone():
+                error = "That person no longer exists."
+            elif conn.execute("SELECT 1 FROM person_links WHERE person_a = ? AND person_b = ?", (a, b)).fetchone():
+                error = "Those two people are already linked."
+            else:
+                try:
+                    conn.execute("INSERT INTO person_links (person_a, person_b, label) VALUES (?, ?, ?)", (a, b, label))
+                except sqlite3.IntegrityError:
+                    conn.rollback()
+                    error = "Those two people are already linked."
+    if error:
+        return person_page(request, person_id, status_code=400, link_error=error, link_label=label, link_other=other)
+    return redirect(f"/people/{person_id}#links")
+
+
+@app.post("/people/{person_id}/links/{link_id}/delete")
+def person_link_delete(person_id: int, link_id: int):
+    get_person(person_id)
+    token = delete_link_for_undo(person_id, link_id)
+    dest = f"/people/{person_id}"
+    if token:
+        dest += f"?undo={token}"
+    return redirect(dest + "#links")
 
 
 @app.post("/people/{person_id}/pin")
@@ -1307,6 +1377,21 @@ def hold_journal_photo(day: str, photo: str, clear: bool = False) -> str:
     return token
 
 
+def _links_touching(conn, person_id: int) -> list[dict]:
+    """Live links, plus links already stored on a deleted person's undo payload."""
+    live = [dict(r) for r in conn.execute(
+        "SELECT * FROM person_links WHERE person_a = ? OR person_b = ?", (person_id, person_id)
+    )]
+    seen = {row["id"] for row in live}
+    for row in conn.execute("SELECT payload FROM trash WHERE kind = 'person'"):
+        for link in json.loads(row["payload"]).get("links") or []:
+            if link.get("id") in seen or person_id not in (link.get("person_a"), link.get("person_b")):
+                continue
+            seen.add(link["id"])
+            live.append(link)
+    return live
+
+
 def delete_person_for_undo(person_id: int) -> str:
     with db.connect() as conn:
         person = conn.execute("SELECT * FROM people WHERE id = ?", (person_id,)).fetchone()
@@ -1314,9 +1399,13 @@ def delete_person_for_undo(person_id: int) -> str:
             raise HTTPException(404)
         notes = [dict(r) for r in conn.execute("SELECT * FROM person_notes WHERE person_id = ?", (person_id,))]
         tags = tags_by_person(conn).get(person_id, [])
-        token = _stash(conn, "person", {"person": dict(person), "notes": notes, "tags": tags, "photo": person["photo"]})
+        links = _links_touching(conn, person_id)
+        token = _stash(conn, "person", {
+            "person": dict(person), "notes": notes, "tags": tags, "photo": person["photo"], "links": links,
+        })
         conn.execute("DELETE FROM person_notes WHERE person_id = ?", (person_id,))
         set_person_tags(conn, person_id, "")
+        conn.execute("DELETE FROM person_links WHERE person_a = ? OR person_b = ?", (person_id, person_id))
         conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
         reindex_mentions(conn)
     return token
@@ -1334,6 +1423,38 @@ def delete_note_for_undo(person_id: int, note_id: int) -> str:
     return token
 
 
+def delete_link_for_undo(person_id: int, link_id: int) -> str:
+    with db.connect() as conn:
+        link = conn.execute(
+            "SELECT * FROM person_links WHERE id = ? AND (person_a = ? OR person_b = ?)",
+            (link_id, person_id, person_id),
+        ).fetchone()
+        if not link:
+            return ""
+        token = _stash(conn, "link", {"link": dict(link), "from_person": person_id})
+        conn.execute("DELETE FROM person_links WHERE id = ?", (link["id"],))
+    return token
+
+
+def _restore_one_link(conn, link: dict):
+    if conn.execute("SELECT 1 FROM person_links WHERE id = ?", (link["id"],)).fetchone():
+        return
+    if conn.execute(
+        "SELECT 1 FROM person_links WHERE person_a = ? AND person_b = ?",
+        (link["person_a"], link["person_b"]),
+    ).fetchone():
+        return
+    present = conn.execute(
+        "SELECT count(*) AS n FROM people WHERE id IN (?, ?)", (link["person_a"], link["person_b"])
+    ).fetchone()["n"]
+    if present != 2:
+        return
+    conn.execute(
+        "INSERT INTO person_links (id, person_a, person_b, label, created_at) VALUES (?, ?, ?, ?, ?)",
+        (link["id"], link["person_a"], link["person_b"], link["label"], link["created_at"]),
+    )
+
+
 def _restore_person(conn, payload) -> str:
     p = payload["person"]
     conn.execute(
@@ -1348,6 +1469,8 @@ def _restore_person(conn, payload) -> str:
             (n["id"], n["person_id"], n["day"], n["body"], n["created_at"]),
         )
     set_person_tags(conn, p["id"], ", ".join(payload.get("tags") or []))
+    for link in payload.get("links") or []:
+        _restore_one_link(conn, link)
     reindex_mentions(conn)
     return f"/people/{p['id']}"
 
@@ -1385,6 +1508,9 @@ def restore_trash(token: str) -> str | None:
                 dest = _restore_note(conn, payload)
             elif row["kind"] == "journal_photo":
                 dest = _restore_journal_photo(conn, payload)
+            elif row["kind"] == "link":
+                _restore_one_link(conn, payload["link"])
+                dest = f"/people/{payload.get('from_person') or payload['link']['person_a']}#links"
             else:
                 return None
             conn.execute("DELETE FROM trash WHERE token = ?", (token,))
@@ -1408,6 +1534,8 @@ def pending_undo(request: Request):
         message = f"Deleted {payload['person']['name']}."
     elif row["kind"] == "note":
         message = "Deleted that note."
+    elif row["kind"] == "link":
+        message = "Removed that link."
     else:
         message = "Removed the photo."
     return {"token": token, "message": message}

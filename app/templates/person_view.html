@@ -37,6 +37,40 @@
     {% endif %}
     {% if person.work %}<dt>Work</dt><dd class="pre">{{ person.work }}</dd>{% endif %}
   </dl>
+  <h2 id="links">Links</h2>
+  {% if link_error %}<p class="error" role="alert">{{ link_error }}</p>{% endif %}
+  {% if links %}
+  <ul class="person-links">
+    {% for l in links %}
+    <li>
+      <a href="/people/{{ l.id }}">
+        {{ avatar(l) }}
+        <span class="grow">
+          <strong>{{ l.name }}</strong>
+          <span class="muted small block">{{ l.label }}</span>
+        </span>
+      </a>
+      <form method="post" action="/people/{{ person.id }}/links/{{ l.link_id }}/delete" class="no-print" onsubmit="return confirm('Remove this link? You can undo it for a couple of minutes.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="link danger-link" title="Remove link" aria-label="Remove link with {{ l.name }}">&times;</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if linkable %}
+  <form method="post" action="/people/{{ person.id }}/links" class="link-form no-print"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <select name="other_id" required aria-label="Person to link">
+      <option value="">Choose a person</option>
+      {% for o in linkable %}
+      <option value="{{ o.id }}" {% if link_other == o.id %}selected{% endif %}>{{ o.name }}</option>
+      {% endfor %}
+    </select>
+    <input name="label" maxlength="40" required placeholder="partner, child, colleague…" aria-label="Label" value="{{ link_label }}">
+    <button class="primary">Link</button>
+  </form>
+  {% elif not links %}
+  <p class="muted">Add another person, then you can link them here.</p>
+  {% endif %}
   <h2 id="quick-notes">Quick notes</h2>
   {% if saved == "note" %}<p class="saved-banner" role="status">Note saved</p>{% endif %}
   <form method="post" action="/people/{{ person.id }}/notes" class="quick-note" data-saving><input type="hidden" name="csrf_token" value="{{ csrf_token }}">

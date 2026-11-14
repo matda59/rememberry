@@ -5,7 +5,8 @@ A small, self-hosted personal app with two things in it:
 - **People**: a dossier per person with a photo, birthday, children, when/where you met, job/work and a big free-text notes field. List and search across every field, see birthdays coming up in the next 30 days, and:
   - **Tags**: comma-separated tags/groups on each person (family, work, book club); filter the people list by tag.
   - **Quick notes**: short dated notes on a person ("Started a new job", "Asked about Mia's recital"), newest first, next to the free-text fields.
-  - **Print**: the Print button on a person page uses the browser's print dialog. The printed page keeps the photo, fields, notes, and journal mentions.
+  - **Links**: connect two people with a short label (partner, child, colleague, or anything else). The link shows on both pages with the photo and the label. Removing it removes it from both, and you can undo that for a couple of minutes.
+  - **Print**: the Print button on a person page uses the browser's print dialog. The printed page keeps the photo, fields, links, notes, and journal mentions.
   - Saving a person or a quick note shows **Saved** or **Note saved** on their page, and the button reads Saving while it sends.
   - **Birthday reminders**: a daily background check sends one message for birthdays today and N days out to whichever of ntfy, Pushover, Discord or email you configure. The settings page (gear icon) shows what's configured and has a "Send test notification" button.
 - **Journal**: one short entry per day. The home page is a dashboard: today's entry (write it, or a preview once written; **Write today** focuses the box), a mood calendar for the month, streak and counts, upcoming birthdays, recently added or updated people, and quick actions, with **On this day** entries from the same date in previous years; browse, search and edit past days. An empty journal or people list says what to do next.
@@ -36,7 +37,7 @@ Everything lives in the `/data` volume:
 
 | Path | Contents |
 | --- | --- |
-| `/data/rememberry.db` | SQLite database (people, notes, tags, journal, settings) |
+| `/data/rememberry.db` | SQLite database (people, notes, tags, links, journal, settings) |
 | `/data/uploads/` | Uploaded photos (people and journal days) |
 
 Back up that folder and you have backed up everything. You can also grab a backup from the browser: **Settings → Download backup** gives a zip with a consistent copy of the database, every photo, and the journal as Markdown (`journal.md`); **Export journal** downloads just the Markdown. To restore a backup zip, stop the container, unzip it into the data folder (replacing `rememberry.db` and `uploads/`), and start it again.

@@ -112,6 +112,18 @@ MIGRATIONS = [
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     """,
+    """
+    CREATE TABLE person_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_a INTEGER NOT NULL,
+        person_b INTEGER NOT NULL,
+        label TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK (person_a < person_b),
+        UNIQUE (person_a, person_b)
+    );
+    CREATE INDEX person_links_b ON person_links (person_b);
+    """,
 ]
 
 
