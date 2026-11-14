@@ -227,6 +227,30 @@ ul.birthdays .muted { font-size: .85rem; text-align: right; white-space: nowrap;
 @media (prefers-reduced-motion: reduce) {
   .dictate.is-recording .dictate-dot { animation: none; }
 }
+/* Phone: a large mic stuck above the tab bar, in thumb reach. Speech handling is unchanged. */
+@media (max-width: 640px) {
+  form:has(.dictate) { padding-bottom: 6.5rem; }
+  .dictate-bar:has(.dictate) {
+    position: fixed; left: .75rem; right: .75rem; z-index: 16;
+    bottom: calc(4.35rem + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column-reverse; align-items: stretch;
+    margin: 0; padding: .45rem .5rem .4rem;
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 8px 28px var(--shadow);
+  }
+  .dictate {
+    width: 100%; min-height: 3.5rem; font-size: 1.12rem; border-radius: 999px;
+    background: var(--accent); color: var(--on-accent); border-color: var(--accent);
+  }
+  .dictate svg { width: 1.55rem; height: 1.55rem; }
+  .dictate-dot { width: .7rem; height: .7rem; }
+  .dictate.is-recording {
+    color: var(--danger); border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 16%, var(--card));
+  }
+  .dictate-bar:has(.dictate) .dictate-note { text-align: center; }
+}
 
 table.channels { width: 100%; border-collapse: collapse; margin-top: .6rem; }
 .channels th, .channels td { text-align: left; padding: .5rem 0; border-top: 1px solid var(--line); }
