@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mention_chips, entry_extras %}
+{% from "_macros.html" import mention_chips, entry_extras, photo_delete %}
 {% block title %}{{ day.isoformat() }} · Rememberry{% endblock %}
 {% block content %}
 <section class="card">
@@ -21,6 +21,7 @@
       {% if saved %}<span class="pill ok">Saved</span>{% endif %}
     </div>
   </form>
+  {% if entry and entry.photo %}{{ photo_delete(day, csrf_token) }}{% endif %}
   {{ mention_chips(mentioned) }}
 </section>
 {% endblock %}

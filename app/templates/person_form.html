@@ -45,7 +45,7 @@
     </div>
   </form>
   {% if person %}
-  <form method="post" action="/people/{{ person.id }}/delete" class="danger-zone" onsubmit="return confirm('Delete this person and their photo? This cannot be undone.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <form method="post" action="/people/{{ person.id }}/delete" class="danger-zone" onsubmit="return confirm('Delete this person? You can undo it for a couple of minutes.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button class="danger">Delete person</button>
   </form>
   {% endif %}

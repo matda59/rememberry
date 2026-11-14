@@ -56,6 +56,14 @@
     </nav>
   </header>
   <main class="{% block main_class %}{% endblock %}">
+    {% if undo %}
+    <div class="undo" role="status">
+      <p>{{ undo.message }} You can undo this for a couple of minutes.</p>
+      <form method="post" action="/undo/{{ undo.token }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="primary" type="submit">Undo</button>
+      </form>
+    </div>
+    {% endif %}
     {% if legacy_login and nav != "login" %}
     <section class="card notice">
       <strong>Set up your account.</strong> Rememberry now has a proper login with your own username and password.

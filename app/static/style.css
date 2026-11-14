@@ -126,6 +126,13 @@ form.inline { display: inline; }
 .check { display: flex; gap: .4rem; align-items: center; font-weight: 400; font-size: .88rem; }
 .photo-field { display: flex; align-items: center; gap: .75rem; font-weight: 400; }
 .danger-zone { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.undo {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius); padding: .75rem 1rem;
+}
+.undo p { margin: 0; }
+.undo form { margin: 0; }
+.photo-delete { margin-top: .7rem; }
 
 .search input { font-size: 1rem; }
 .sr-only {

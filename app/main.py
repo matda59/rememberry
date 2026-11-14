@@ -1,14 +1,16 @@
 import calendar
+import json
 import logging
 import os
 import re
 import shutil
+import sqlite3
 import tempfile
 import threading
 import time
 import uuid
 import zipfile
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -57,6 +59,7 @@ def startup():
     db.init()
     with db.connect() as conn:
         reindex_mentions(conn)
+    purge_expired_trash()
     if auth.LEGACY_PASSWORD and auth.has_users():
         log.info("APP_PASSWORD is set but an account exists, so it is ignored. You can remove it.")
     threading.Thread(target=reminder_loop, daemon=True).start()
@@ -137,6 +140,7 @@ def render(request: Request, name: str, status_code: int = 200, **ctx):
     return templates.TemplateResponse(request, name, {
         "auth_enabled": bool(user or legacy), "current_user": user, "legacy_login": legacy,
         "csrf_token": getattr(request.state, "csrf", ""), "theme": current_theme(request), **ctx,
+        "undo": pending_undo(request),
     }, status_code=status_code)
 
 
@@ -502,6 +506,10 @@ def reminder_loop():
             send_birthday_reminders()
         except Exception:
             log.exception("Birthday reminder check failed")
+        try:
+            purge_expired_trash()
+        except Exception:
+            log.exception("Trash cleanup failed")
         time.sleep(600)
 
 
@@ -867,9 +875,13 @@ async def journal_save(
     existing = get_entry(d)
     photo_name = existing["photo"] if existing else ""
     new_photo = await save_photo(photo)
-    if new_photo or remove_photo:
-        delete_photo(photo_name)
-        photo_name = new_photo or ""
+    old_photo = photo_name
+    undo = ""
+    if new_photo:
+        photo_name = new_photo
+    elif remove_photo and old_photo:
+        undo = hold_journal_photo(d.isoformat(), old_photo)
+        photo_name = ""
     with db.connect() as conn:
         conn.execute(
             "INSERT INTO journal (day, body, mood, photo, updated_at) VALUES (?, ?, ?, ?, datetime('now')) "
@@ -878,7 +890,23 @@ async def journal_save(
             (d.isoformat(), body.strip(), mood if mood in MOODS else "", photo_name),
         )
         index_day_mentions(conn, d.isoformat(), body)
-    return redirect("/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1")
+    if new_photo and old_photo:
+        delete_photo(old_photo)
+    dest = "/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1"
+    if undo:
+        dest += "&undo=" + undo
+    return redirect(dest)
+
+
+@app.post("/journal/{day}/photo/delete")
+def journal_photo_delete(day: str):
+    d = parse_day(day)
+    entry = get_entry(d)
+    dest = "/" if d == today() else f"/journal/{d.isoformat()}"
+    if not entry or not entry["photo"]:
+        return redirect(dest)
+    token = hold_journal_photo(d.isoformat(), entry["photo"], clear=True)
+    return redirect(f"{dest}?undo={token}")
 
 
 # ---------- people ----------
@@ -1063,14 +1091,8 @@ async def person_update(
 
 @app.post("/people/{person_id}/delete")
 def person_delete(person_id: int):
-    person = get_person(person_id)
-    delete_photo(person["photo"])
-    with db.connect() as conn:
-        conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
-        conn.execute("DELETE FROM person_notes WHERE person_id = ?", (person_id,))
-        set_person_tags(conn, person_id, "")
-        reindex_mentions(conn)
-    return redirect("/people")
+    token = delete_person_for_undo(person_id)
+    return redirect(f"/people?undo={token}")
 
 
 @app.post("/people/{person_id}/notes")
@@ -1086,6 +1108,179 @@ def person_note_add(person_id: int, body: str = Form(""), day: str = Form("")):
 
 @app.post("/people/{person_id}/notes/{note_id}/delete")
 def person_note_delete(person_id: int, note_id: int):
+    token = delete_note_for_undo(person_id, note_id)
+    dest = f"/people/{person_id}"
+    if token:
+        dest += f"?undo={token}"
+    return redirect(dest + "#quick-notes")
+
+
+# ---------- undo ----------
+
+UNDO_SECONDS = 120
+
+
+def _cutoff() -> str:
+    return (datetime.now(timezone.utc) - timedelta(seconds=UNDO_SECONDS)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _payload_photos(payload: dict) -> list[str]:
+    names = []
+    for name in (payload.get("photo"), (payload.get("person") or {}).get("photo")):
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _photo_in_use(conn, name: str) -> bool:
+    if conn.execute("SELECT 1 FROM people WHERE photo = ?", (name,)).fetchone():
+        return True
+    if conn.execute("SELECT 1 FROM journal WHERE photo = ?", (name,)).fetchone():
+        return True
+    for row in conn.execute("SELECT payload FROM trash"):
+        if name in _payload_photos(json.loads(row["payload"])):
+            return True
+    return False
+
+
+def _purge_trash(conn):
+    expired = conn.execute("SELECT token, payload FROM trash WHERE created_at < ?", (_cutoff(),)).fetchall()
+    photos = []
+    for row in expired:
+        photos += _payload_photos(json.loads(row["payload"]))
+        conn.execute("DELETE FROM trash WHERE token = ?", (row["token"],))
+    for name in photos:
+        if not _photo_in_use(conn, name):
+            delete_photo(name)
+
+
+def purge_expired_trash():
     with db.connect() as conn:
+        _purge_trash(conn)
+
+
+def _stash(conn, kind: str, payload: dict) -> str:
+    _purge_trash(conn)
+    token = uuid.uuid4().hex
+    conn.execute("INSERT INTO trash (token, kind, payload) VALUES (?, ?, ?)", (token, kind, json.dumps(payload)))
+    return token
+
+
+def hold_journal_photo(day: str, photo: str, clear: bool = False) -> str:
+    with db.connect() as conn:
+        token = _stash(conn, "journal_photo", {"day": day, "photo": photo})
+        if clear:
+            conn.execute("UPDATE journal SET photo = '', updated_at = datetime('now') WHERE day = ?", (day,))
+    return token
+
+
+def delete_person_for_undo(person_id: int) -> str:
+    with db.connect() as conn:
+        person = conn.execute("SELECT * FROM people WHERE id = ?", (person_id,)).fetchone()
+        if not person:
+            raise HTTPException(404)
+        notes = [dict(r) for r in conn.execute("SELECT * FROM person_notes WHERE person_id = ?", (person_id,))]
+        tags = tags_by_person(conn).get(person_id, [])
+        token = _stash(conn, "person", {"person": dict(person), "notes": notes, "tags": tags, "photo": person["photo"]})
+        conn.execute("DELETE FROM person_notes WHERE person_id = ?", (person_id,))
+        set_person_tags(conn, person_id, "")
+        conn.execute("DELETE FROM people WHERE id = ?", (person_id,))
+        reindex_mentions(conn)
+    return token
+
+
+def delete_note_for_undo(person_id: int, note_id: int) -> str:
+    with db.connect() as conn:
+        note = conn.execute(
+            "SELECT * FROM person_notes WHERE id = ? AND person_id = ?", (note_id, person_id)
+        ).fetchone()
+        if not note:
+            return ""
+        token = _stash(conn, "note", {"note": dict(note)})
         conn.execute("DELETE FROM person_notes WHERE id = ? AND person_id = ?", (note_id, person_id))
-    return redirect(f"/people/{person_id}#quick-notes")
+    return token
+
+
+def _restore_person(conn, payload) -> str:
+    p = payload["person"]
+    conn.execute(
+        "INSERT INTO people (id, name, birthday, children, met, work, notes, photo, created_at, updated_at, pinned) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (p["id"], p["name"], p["birthday"], p["children"], p["met"], p["work"], p["notes"], p.get("photo", ""),
+         p["created_at"], p["updated_at"], p.get("pinned") or 0),
+    )
+    for n in payload.get("notes") or []:
+        conn.execute(
+            "INSERT INTO person_notes (id, person_id, day, body, created_at) VALUES (?, ?, ?, ?, ?)",
+            (n["id"], n["person_id"], n["day"], n["body"], n["created_at"]),
+        )
+    set_person_tags(conn, p["id"], ", ".join(payload.get("tags") or []))
+    reindex_mentions(conn)
+    return f"/people/{p['id']}"
+
+
+def _restore_note(conn, payload) -> str:
+    n = payload["note"]
+    conn.execute(
+        "INSERT INTO person_notes (id, person_id, day, body, created_at) VALUES (?, ?, ?, ?, ?)",
+        (n["id"], n["person_id"], n["day"], n["body"], n["created_at"]),
+    )
+    return f"/people/{n['person_id']}#quick-notes"
+
+
+def _restore_journal_photo(conn, payload) -> str:
+    day = payload["day"]
+    if conn.execute("SELECT 1 FROM journal WHERE day = ?", (day,)).fetchone():
+        conn.execute("UPDATE journal SET photo = ?, updated_at = datetime('now') WHERE day = ?", (payload["photo"], day))
+    else:
+        conn.execute("INSERT INTO journal (day, body, photo) VALUES (?, '', ?)", (day, payload["photo"]))
+    d = date.fromisoformat(day)
+    return "/" if d == today() else f"/journal/{day}"
+
+
+def restore_trash(token: str) -> str | None:
+    try:
+        with db.connect() as conn:
+            _purge_trash(conn)
+            row = conn.execute("SELECT kind, payload FROM trash WHERE token = ?", (token,)).fetchone()
+            if not row:
+                return None
+            payload = json.loads(row["payload"])
+            if row["kind"] == "person":
+                dest = _restore_person(conn, payload)
+            elif row["kind"] == "note":
+                dest = _restore_note(conn, payload)
+            elif row["kind"] == "journal_photo":
+                dest = _restore_journal_photo(conn, payload)
+            else:
+                return None
+            conn.execute("DELETE FROM trash WHERE token = ?", (token,))
+            return dest
+    except sqlite3.IntegrityError:
+        log.exception("Undo failed")
+        return None
+
+
+def pending_undo(request: Request):
+    token = request.query_params.get("undo", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", token or ""):
+        return None
+    with db.connect() as conn:
+        _purge_trash(conn)
+        row = conn.execute("SELECT kind, payload FROM trash WHERE token = ?", (token,)).fetchone()
+    if not row:
+        return None
+    payload = json.loads(row["payload"])
+    if row["kind"] == "person":
+        message = f"Deleted {payload['person']['name']}."
+    elif row["kind"] == "note":
+        message = "Deleted that note."
+    else:
+        message = "Removed the photo."
+    return {"token": token, "message": message}
+
+
+@app.post("/undo/{token}")
+def undo(token: str):
+    dest = restore_trash(token)
+    return redirect(dest or "/")

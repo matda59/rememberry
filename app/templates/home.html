@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import avatar, birthday_list, mention_chips, entry_extras %}
+{% from "_macros.html" import avatar, birthday_list, mention_chips, entry_extras, photo_delete %}
 {% block main_class %}wide{% endblock %}
 {% block content %}
 <section class="dash-head">
@@ -61,6 +61,7 @@
         </div>
       </form>
       {% endif %}
+      {% if entry and entry.photo %}{{ photo_delete(day, csrf_token) }}{% endif %}
     </section>
 
     {% if on_this_day %}

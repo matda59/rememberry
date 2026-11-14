@@ -46,7 +46,7 @@
     <li>
       <span class="date">{{ n.day }}</span>
       <span class="grow pre">{{ n.body }}</span>
-      <form method="post" action="/people/{{ person.id }}/notes/{{ n.id }}/delete" onsubmit="return confirm('Delete this note?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <form method="post" action="/people/{{ person.id }}/notes/{{ n.id }}/delete" onsubmit="return confirm('Delete this note? You can undo it for a couple of minutes.')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="link danger-link" title="Delete note" aria-label="Delete note">&times;</button>
       </form>
     </li>

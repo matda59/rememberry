@@ -26,12 +26,18 @@
 <div class="entry-photo">
   {% if entry and entry.photo %}
   <a href="/photos/{{ entry.photo }}" target="_blank"><img src="/photos/{{ entry.photo }}" alt="Photo for this day"></a>
-  <span class="check"><input type="checkbox" name="remove_photo" value="1"> Remove photo</span>
   {% endif %}
   <label class="file-btn">{{ "Replace photo" if entry and entry.photo else "Add a photo" }}
     <input type="file" name="photo" accept="image/*">
   </label>
 </div>
+{%- endmacro %}
+
+{% macro photo_delete(day, csrf) -%}
+<form method="post" action="/journal/{{ day.isoformat() }}/photo/delete" class="photo-delete" onsubmit="return confirm('Remove this photo? You can undo it for a couple of minutes.')">
+  <input type="hidden" name="csrf_token" value="{{ csrf }}">
+  <button type="submit" class="danger">Remove photo</button>
+</form>
 {%- endmacro %}
 
 {% macro when(in_days) -%}
