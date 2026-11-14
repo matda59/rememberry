@@ -332,6 +332,28 @@
   });
 })();
 
+// "/" focuses the header search unless the user is already typing in a field.
+(() => {
+  const typing = (el) => {
+    if (!el || !el.tagName) return false;
+    if (el.isContentEditable) return true;
+    const tag = el.tagName;
+    if (tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (tag !== "INPUT") return false;
+    const type = (el.getAttribute("type") || "text").toLowerCase();
+    return !["button", "checkbox", "radio", "submit", "reset", "file", "color", "range"].includes(type);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    if (typing(e.target)) return;
+    const input = document.getElementById("q-global");
+    if (!input) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  });
+})();
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }

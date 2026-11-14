@@ -20,7 +20,7 @@
     {% if nav != "login" %}
     <form class="global-search" action="/search" method="get" role="search">
       <label class="sr-only" for="q-global">Search people and journal</label>
-      <input id="q-global" type="search" name="q" value="{% if request.url.path == '/search' %}{{ request.query_params.get('q', '') }}{% endif %}" placeholder="Search people and journal" enterkeyhint="search" autocomplete="off">
+      <input id="q-global" type="search" name="q" value="{% if request.url.path == '/search' %}{{ request.query_params.get('q', '') }}{% endif %}" placeholder="Search people and journal" title="Press / to search" aria-keyshortcuts="/" enterkeyhint="search" autocomplete="off">
     </form>
     <nav class="tabs" aria-label="Main">
       {% for key, href, label, icon in [
