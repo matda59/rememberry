@@ -13,6 +13,17 @@
   </div>
 </section>
 
+{% if pinned_people %}
+<section class="card pinned-card" aria-label="Pinned people">
+  <h2>Pinned</h2>
+  <ul class="pinned-row">
+    {% for p in pinned_people %}
+    <li><a href="/people/{{ p.id }}">{{ avatar(p) }}<span class="pinned-name">{{ p.name }}</span></a></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 <section class="stats" aria-label="Stats">
   <div class="stat"><span class="stat-num">{{ stats.streak }}</span><span class="stat-label">day streak{% if stats.streak and not written %} &middot; write today to keep it{% endif %}</span></div>
   <a class="stat" href="/journal/calendar"><span class="stat-num">{{ stats.month }}</span><span class="stat-label">entries in {{ first.strftime("%B") }}</span></a>

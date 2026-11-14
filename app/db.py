@@ -101,6 +101,9 @@ MIGRATIONS = [
         locked_until REAL NOT NULL DEFAULT 0
     );
     """,
+    """
+    ALTER TABLE people ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 

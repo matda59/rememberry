@@ -684,6 +684,9 @@ def home(request: Request):
         recent_people = conn.execute(
             "SELECT id, name, photo, work, created_at, updated_at FROM people ORDER BY updated_at DESC, id DESC LIMIT 5"
         ).fetchall()
+        pinned_people = conn.execute(
+            "SELECT id, name, photo FROM people WHERE pinned = 1 ORDER BY name COLLATE NOCASE"
+        ).fetchall()
         weeks, month_entries = month_grid(conn, first)
         stats = {
             "streak": writing_streak(conn, t),
@@ -695,7 +698,8 @@ def home(request: Request):
     written = bool(entry and (entry["body"] or entry["mood"] or entry["photo"]))
     return render(request, "home.html", nav="home", day=t, entry=entry, written=written, recent=recent,
                   on_this_day=on_this_day, birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
-                  recent_people=recent_people, weeks=weeks, month_entries=month_entries, first=first, stats=stats,
+                  recent_people=recent_people, pinned_people=pinned_people, weeks=weeks, month_entries=month_entries,
+                  first=first, stats=stats,
                   greeting=greeting(), editing=bool(request.query_params.get("edit")),
                   saved=request.query_params.get("saved"))
 
@@ -843,7 +847,7 @@ def tags_by_person(conn) -> dict[int, list[str]]:
 
 @app.get("/people")
 def people_list(request: Request, q: str = "", tag: str = ""):
-    sql = "SELECT id, name, work, birthday, photo FROM people WHERE 1=1"
+    sql = "SELECT id, name, work, birthday, photo, pinned FROM people WHERE 1=1"
     args: list = []
     if q:
         like = f"%{q}%"
@@ -853,7 +857,7 @@ def people_list(request: Request, q: str = "", tag: str = ""):
     if tag:
         sql += " AND id IN (SELECT pt.person_id FROM person_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name = ?)"
         args.append(tag)
-    sql += " ORDER BY name COLLATE NOCASE"
+    sql += " ORDER BY pinned DESC, name COLLATE NOCASE"
     with db.connect() as conn:
         people = conn.execute(sql, args).fetchall()
         tags = conn.execute("SELECT t.name, count(*) AS n FROM tags t JOIN person_tags pt ON pt.tag_id = t.id "
@@ -914,6 +918,14 @@ def person_view(request: Request, person_id: int):
         tags = tags_by_person(conn).get(person_id, [])
     return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
                   mentions=mentions, quick_notes=notes, tags=tags, today=today())
+
+
+@app.post("/people/{person_id}/pin")
+def person_pin(person_id: int):
+    person = get_person(person_id)
+    with db.connect() as conn:
+        conn.execute("UPDATE people SET pinned = ? WHERE id = ?", (0 if person["pinned"] else 1, person_id))
+    return redirect(f"/people/{person_id}")
 
 
 @app.get("/people/{person_id}/edit")

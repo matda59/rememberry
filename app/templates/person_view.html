@@ -13,6 +13,11 @@
   </div>
   <div class="actions">
     <a class="btn" href="/people/{{ person.id }}/edit">Edit</a>
+    <form method="post" action="/people/{{ person.id }}/pin" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="pin-btn {{ 'is-pinned' if person.pinned }}" aria-pressed="{{ 'true' if person.pinned else 'false' }}" title="{{ 'Unpin' if person.pinned else 'Pin to the top' }}">
+        <span aria-hidden="true">&#128204;&#xFE0E;</span> {{ "Unpin" if person.pinned else "Pin" }}
+      </button>
+    </form>
     <a class="btn" href="/people">Back</a>
   </div>
   <dl class="fields">
