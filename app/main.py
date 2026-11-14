@@ -536,6 +536,96 @@ def api_people():
     return [{"id": r["id"], "name": r["name"]} for r in rows]
 
 
+# ---------- search ----------
+
+SEARCH_LIMIT = 20
+
+
+def like_pattern(q: str) -> str:
+    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def snippet(text: str, q: str, radius: int = 70) -> str:
+    flat = " ".join((text or "").split())
+    if not flat:
+        return ""
+    i = flat.lower().find(q.lower())
+    if i < 0:
+        return flat[:160]
+    start, end = max(0, i - radius), min(len(flat), i + len(q) + radius)
+    out = flat[start:end]
+    if start:
+        out = "…" + out
+    if end < len(flat):
+        out += "…"
+    return out
+
+
+def search_people(conn, q: str):
+    like = like_pattern(q)
+    fields = list(PERSON_FIELDS)
+    where = " OR ".join(f"p.{f} LIKE ? ESCAPE '\\'" for f in fields)
+    rows = conn.execute(
+        f"SELECT p.* FROM people p WHERE {where} "
+        "OR p.id IN (SELECT pt.person_id FROM person_tags pt JOIN tags t ON t.id = pt.tag_id "
+        "WHERE t.name LIKE ? ESCAPE '\\') "
+        "OR p.id IN (SELECT person_id FROM person_notes WHERE body LIKE ? ESCAPE '\\') "
+        "ORDER BY p.name COLLATE NOCASE LIMIT ?",
+        [like] * (len(fields) + 2) + [SEARCH_LIMIT + 1],
+    ).fetchall()
+    people = []
+    ql = q.lower()
+    for person in rows[:SEARCH_LIMIT]:
+        tags = [r["name"] for r in conn.execute(
+            "SELECT t.name FROM person_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.person_id = ? "
+            "ORDER BY t.name COLLATE NOCASE", (person["id"],))]
+        note = conn.execute(
+            "SELECT body FROM person_notes WHERE person_id = ? AND body LIKE ? ESCAPE '\\' ORDER BY day DESC LIMIT 1",
+            (person["id"], like),
+        ).fetchone()
+        detail = ""
+        matched_tags = [t for t in tags if ql in t.lower()]
+        if ql not in (person["name"] or "").lower():
+            if matched_tags:
+                detail = "Tag: " + ", ".join(matched_tags)
+            else:
+                for field in ("notes", "work", "children", "met", "birthday"):
+                    if ql in (person[field] or "").lower():
+                        detail = snippet(person[field], q)
+                        break
+                if not detail and note:
+                    detail = snippet(note["body"], q)
+        if not detail:
+            detail = person["work"] or (", ".join(tags) if tags else "")
+        people.append({"id": person["id"], "name": person["name"], "photo": person["photo"], "detail": detail})
+    return people, len(rows) > SEARCH_LIMIT
+
+
+def search_journal(conn, q: str):
+    like = like_pattern(q)
+    rows = conn.execute(
+        f"SELECT day, body, mood, photo FROM journal WHERE body LIKE ? ESCAPE '\\' AND {NONEMPTY_ENTRY} "
+        "ORDER BY day DESC LIMIT ?",
+        (like, SEARCH_LIMIT + 1),
+    ).fetchall()
+    entries = [{"day": r["day"], "mood": r["mood"], "photo": r["photo"], "excerpt": snippet(r["body"], q)}
+               for r in rows[:SEARCH_LIMIT]]
+    return entries, len(rows) > SEARCH_LIMIT
+
+
+@app.get("/search")
+def search(request: Request, q: str = ""):
+    q = " ".join(q.split())
+    people, people_more, entries, entries_more = [], False, [], False
+    if q:
+        with db.connect() as conn:
+            people, people_more = search_people(conn, q)
+            entries, entries_more = search_journal(conn, q)
+    return render(request, "search.html", nav="search", q=q, people=people, entries=entries,
+                  people_more=people_more, entries_more=entries_more, today=today())
+
+
 # ---------- journal ----------
 
 def parse_day(day: str) -> date:

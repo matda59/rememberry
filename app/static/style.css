@@ -128,6 +128,12 @@ form.inline { display: inline; }
 .danger-zone { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 
 .search input { font-size: 1rem; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.global-search { flex: 1 1 14rem; max-width: 28rem; min-width: 0; margin: 0 .25rem 0 .5rem; }
+.global-search input { border-radius: 999px; padding: .4rem .9rem; background: var(--bg); }
 
 ul.entries, ul.people, ul.birthdays { list-style: none; margin: 0; padding: 0; }
 ul.entries li + li, ul.people li + li, ul.birthdays li + li { border-top: 1px solid var(--line); }
@@ -337,6 +343,9 @@ a.stat:hover { text-decoration: none; border-color: var(--accent); }
 }
 @media (max-width: 640px) {
   body.has-tabs { padding-bottom: calc(4.2rem + env(safe-area-inset-bottom)); }
+  .has-tabs .topbar { flex-wrap: wrap; row-gap: .4rem; }
+  .global-search { order: 4; flex: 1 0 100%; max-width: none; margin: 0; }
+  .global-search input { min-height: 44px; font-size: 1rem; }
   /* backdrop-filter would make the header the containing block of the fixed tab bar. */
   .has-tabs .topbar { backdrop-filter: none; background: var(--card); }
   .tabs {

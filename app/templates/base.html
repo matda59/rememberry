@@ -18,6 +18,10 @@
   <header class="topbar">
     <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="26" height="26"><span>Rememberry</span></a>
     {% if nav != "login" %}
+    <form class="global-search" action="/search" method="get" role="search">
+      <label class="sr-only" for="q-global">Search people and journal</label>
+      <input id="q-global" type="search" name="q" value="{% if request.url.path == '/search' %}{{ request.query_params.get('q', '') }}{% endif %}" placeholder="Search people and journal" enterkeyhint="search" autocomplete="off">
+    </form>
     <nav class="tabs" aria-label="Main">
       {% for key, href, label, icon in [
         ("home", "/", "Home", '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>'),

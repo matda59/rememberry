@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}{% if q %}{{ q }} · {% endif %}Search · Rememberry{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Search</h1>
+</div>
+{% if not q %}
+<section class="card">
+  <p class="muted">Search people (names, birthdays, children, how you met, work, notes, tags and quick notes) and journal entries.</p>
+</section>
+{% elif not people and not entries %}
+<section class="card">
+  <p class="muted">Nothing matches &ldquo;{{ q }}&rdquo;.</p>
+</section>
+{% else %}
+<section class="card">
+  <h2>People{% if people %} <span class="muted">{{ people|length }}{% if people_more %}+{% endif %}</span>{% endif %}</h2>
+  {% if people %}
+  <ul class="people">
+    {% for p in people %}
+    <li><a href="/people/{{ p.id }}">
+      {{ avatar(p) }}
+      <span class="grow">
+        <strong>{{ p.name }}</strong>
+        {% if p.detail %}<span class="muted small block">{{ p.detail }}</span>{% endif %}
+      </span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% if people_more %}<p class="muted small">Showing the first {{ people|length }} people.</p>{% endif %}
+  {% else %}
+  <p class="muted">No people match.</p>
+  {% endif %}
+</section>
+<section class="card">
+  <h2>Journal{% if entries %} <span class="muted">{{ entries|length }}{% if entries_more %}+{% endif %}</span>{% endif %}</h2>
+  {% if entries %}
+  <ul class="entries">
+    {% for e in entries %}
+    <li><a href="{{ '/' if e.day == today.isoformat() else '/journal/' ~ e.day }}">
+      <span class="date">{{ e.day }} {{ e.mood }}{% if e.photo %} <span class="muted" title="Has a photo">&#128247;&#xFE0E;</span>{% endif %}</span>
+      <span class="excerpt">{{ e.excerpt }}</span>
+    </a></li>
+    {% endfor %}
+  </ul>
+  {% if entries_more %}<p class="muted small">Showing the first {{ entries|length }} entries.</p>{% endif %}
+  {% else %}
+  <p class="muted">No journal entries match.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
