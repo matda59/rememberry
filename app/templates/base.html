@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
-<body class="{{ 'has-tabs' if nav != 'login' }}">
+<body class="{{ 'has-tabs' if nav != 'login' }}{% block body_class %}{% endblock %}">
   <header class="topbar">
     <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="26" height="26"><span>Rememberry</span></a>
     {% if nav != "login" %}

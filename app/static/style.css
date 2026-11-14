@@ -428,3 +428,24 @@ a.stat:hover { text-decoration: none; border-color: var(--accent); }
   .quick-actions { width: 100%; }
   .quick-actions .btn { flex: 1; }
 }
+
+@media print {
+  body.person-page { background: #fff; color: #111; }
+  body.person-page .topbar,
+  body.person-page .no-print,
+  body.person-page .undo,
+  body.person-page .quick-note,
+  body.person-page .quick-notes form { display: none !important; }
+  body.person-page main { max-width: none; margin: 0; padding: 0; display: block; }
+  body.person-page .card { border: 0; box-shadow: none; padding: 0; background: #fff; color: #111; }
+  body.person-page a,
+  body.person-page h1,
+  body.person-page h2 { color: #111; text-decoration: none; }
+  body.person-page .muted { color: #444; }
+  body.person-page .notes { background: #fff; border: 1px solid #ccc; }
+  body.person-page .chip { background: #fff; color: #111; border: 1px solid #ccc; }
+  body.person-page .avatar { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body.person-page .person-head,
+  body.person-page .fields,
+  body.person-page .quick-notes li { break-inside: avoid; }
+}
