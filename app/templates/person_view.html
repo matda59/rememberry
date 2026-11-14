@@ -4,6 +4,7 @@
 {% block body_class %} person-page{% endblock %}
 {% block content %}
 <section class="card person">
+  {% if saved == "1" %}<p class="saved-banner" role="status">Saved</p>{% endif %}
   <div class="person-head">
     {{ avatar(person, "lg") }}
     <div class="grow">
@@ -37,7 +38,8 @@
     {% if person.work %}<dt>Work</dt><dd class="pre">{{ person.work }}</dd>{% endif %}
   </dl>
   <h2 id="quick-notes">Quick notes</h2>
-  <form method="post" action="/people/{{ person.id }}/notes" class="quick-note"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if saved == "note" %}<p class="saved-banner" role="status">Note saved</p>{% endif %}
+  <form method="post" action="/people/{{ person.id }}/notes" class="quick-note" data-saving><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="date" name="day" value="{{ today.isoformat() }}" aria-label="Date">
     <input name="body" placeholder="e.g. Started a new job at the hospital" required aria-label="Note">
     <button class="primary">Add</button>

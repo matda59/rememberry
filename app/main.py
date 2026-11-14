@@ -1141,7 +1141,7 @@ async def person_create(
         new_id = cur.lastrowid
         set_person_tags(conn, new_id, tags)
         reindex_mentions(conn)
-    return redirect(f"/people/{new_id}")
+    return redirect(f"/people/{new_id}?saved=1")
 
 
 @app.get("/people/{person_id}")
@@ -1164,6 +1164,7 @@ def person_view(request: Request, person_id: int):
         ).fetchall()
         tags = tags_by_person(conn).get(person_id, [])
     return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
+                  saved=request.query_params.get("saved", ""),
                   met_phrase=met_phrase(met_on, today()) if met_on else None,
                   mentions=mentions, quick_notes=notes, tags=tags, today=today())
 
@@ -1205,7 +1206,7 @@ async def person_update(
         set_person_tags(conn, person_id, tags)
         if name.strip() != person["name"]:
             reindex_mentions(conn)
-    return redirect(f"/people/{person_id}")
+    return redirect(f"/people/{person_id}?saved=1")
 
 
 @app.post("/people/{person_id}/delete")
@@ -1217,12 +1218,13 @@ def person_delete(person_id: int):
 @app.post("/people/{person_id}/notes")
 def person_note_add(person_id: int, body: str = Form(""), day: str = Form("")):
     get_person(person_id)
-    if body.strip():
-        d = parse_day(day) if day else today()
-        with db.connect() as conn:
-            conn.execute("INSERT INTO person_notes (person_id, day, body) VALUES (?, ?, ?)",
-                         (person_id, d.isoformat(), body.strip()))
-    return redirect(f"/people/{person_id}#quick-notes")
+    if not body.strip():
+        return redirect(f"/people/{person_id}#quick-notes")
+    d = parse_day(day) if day else today()
+    with db.connect() as conn:
+        conn.execute("INSERT INTO person_notes (person_id, day, body) VALUES (?, ?, ?)",
+                     (person_id, d.isoformat(), body.strip()))
+    return redirect(f"/people/{person_id}?saved=note#quick-notes")
 
 
 @app.post("/people/{person_id}/notes/{note_id}/delete")
