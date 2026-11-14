@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import avatar, birthday_list, mention_chips, entry_extras, photo_delete %}
+{% from "_macros.html" import avatar, birthday_list, mention_chips, entry_extras, photo_delete, occasion_marks, cal_legend %}
 {% block main_class %}wide{% endblock %}
 {% block content %}
 <section class="dash-head">
@@ -111,16 +111,22 @@
         {% for name in ["M", "T", "W", "T", "F", "S", "S"] %}<div class="dow">{{ name }}</div>{% endfor %}
         {% for week in weeks %}{% for d in week %}
         {% set e = month_entries.get(d.isoformat()) %}
+        {% set evs = occasions.get(d.isoformat(), []) %}
         {% set cls = ["day", "other" if d.month != first.month, "today" if d == day, "has" if e, "future" if d > day]|select|join(" ") %}
+        {% set tip = d.strftime('%a %d %b') %}
+        {% if e and e.mood %}{% set tip = tip ~ ': ' ~ moods[e.mood] %}{% endif %}
+        {% if evs %}{% set tip = tip ~ ' · ' ~ (evs|map(attribute='label')|join(', ')) %}{% endif %}
         {% if d > day or d.month != first.month %}
-        <span class="{{ cls }}">{% if d.month == first.month %}<span class="num">{{ d.day }}</span>{% endif %}</span>
+        <span class="{{ cls }}" title="{{ tip }}">{% if d.month == first.month %}<span class="num">{{ d.day }}</span>{{ occasion_marks(evs) }}{% endif %}</span>
         {% else %}
-        <a class="{{ cls }}" href="{{ '/#today' if d == day else '/journal/' ~ d.isoformat() }}" title="{{ d.strftime('%a %d %b') }}{% if e and e.mood %}: {{ moods[e.mood] }}{% endif %}">
+        <a class="{{ cls }}" href="{{ '/#today' if d == day else '/journal/' ~ d.isoformat() }}" title="{{ tip }}">
           {% if e and e.mood %}<span class="mood">{{ e.mood }}</span>{% elif e %}<span class="dot"></span>{% else %}<span class="num">{{ d.day }}</span>{% endif %}
+          {{ occasion_marks(evs) }}
         </a>
         {% endif %}
         {% endfor %}{% endfor %}
       </div>
+      {% if occasions %}{{ cal_legend() }}{% endif %}
     </section>
 
     {{ birthday_list(upcoming) }}

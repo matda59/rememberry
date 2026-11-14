@@ -471,6 +471,67 @@ def upcoming_events(days: int = 30):
     return sorted(events, key=lambda r: (r["in_days"], r["name"].lower()))
 
 
+def _same_month_day(d: date, month: int, day: int) -> bool:
+    if d.month == month and d.day == day:
+        return True
+    # A Feb 29 birthday or anniversary shows on Feb 28 when the calendar year is not a leap year.
+    if month == 2 and day == 29 and d.month == 2 and d.day == 28:
+        try:
+            date(d.year, 2, 29)
+        except ValueError:
+            return True
+    return False
+
+
+def occasions_on(conn, dates: list[date]) -> dict[str, list[dict]]:
+    """Birthdays and meeting anniversaries on these dates, keyed by ISO day.
+
+    A meeting anniversary is a later year whose month and day match the parsed met date.
+    Markers are separate from journal moods; the day link still opens the journal.
+    """
+    if not dates:
+        return {}
+    rows = conn.execute(
+        "SELECT id, name, birthday, met FROM people WHERE birthday != '' OR met != ''"
+    ).fetchall()
+    found: dict[str, list[dict]] = {}
+    for row in rows:
+        parsed = parse_birthday(row["birthday"])
+        if parsed:
+            year, month, day = parsed
+            born = None
+            if year:
+                try:
+                    born = date(year, month, day)
+                except ValueError:
+                    born = date(year, 2, 28)
+            for d in dates:
+                if born and d < born:
+                    continue
+                if _same_month_day(d, month, day):
+                    found.setdefault(d.isoformat(), []).append({
+                        "kind": "birthday", "id": row["id"], "name": row["name"],
+                        "label": f"{row['name']}'s birthday",
+                    })
+        met = parse_met_date(row["met"])
+        if not met:
+            continue
+        for d in dates:
+            if d <= met or not _same_month_day(d, met.month, met.day):
+                continue
+            years = d.year - met.year
+            if years < 1:
+                continue
+            unit = "year" if years == 1 else "years"
+            found.setdefault(d.isoformat(), []).append({
+                "kind": "met", "id": row["id"], "name": row["name"],
+                "label": f"Met {row['name']} ({years} {unit})",
+            })
+    for items in found.values():
+        items.sort(key=lambda item: (item["kind"] != "birthday", item["name"].lower()))
+    return found
+
+
 def _dashboard_upcoming():
     """Soonest birthdays and meeting anniversaries, so one long list doesn't hide the other."""
     events = upcoming_events()
@@ -836,6 +897,7 @@ def home(request: Request):
             "SELECT id, name, photo FROM people WHERE pinned = 1 ORDER BY name COLLATE NOCASE"
         ).fetchall()
         weeks, month_entries = month_grid(conn, first)
+        occasions = occasions_on(conn, [d for week in weeks for d in week])
         stats = {
             "streak": writing_streak(conn, t),
             "month": sum(1 for d in month_entries if d[:7] == first.isoformat()[:7]),
@@ -847,7 +909,7 @@ def home(request: Request):
     return render(request, "home.html", nav="home", day=t, entry=entry, written=written, recent=recent,
                   on_this_day=on_this_day, upcoming=_dashboard_upcoming(), mentioned=mentioned_people(t),
                   recent_people=recent_people, pinned_people=pinned_people, weeks=weeks, month_entries=month_entries,
-                  first=first, stats=stats,
+                  occasions=occasions, first=first, stats=stats,
                   greeting=greeting(), editing=bool(request.query_params.get("edit")),
                   saved=request.query_params.get("saved"))
 
@@ -883,6 +945,7 @@ def journal_calendar(request: Request, month: str = ""):
         raise HTTPException(404)
     with db.connect() as conn:
         weeks, entries = month_grid(conn, first)
+        occasions = occasions_on(conn, [d for week in weeks for d in week])
     rows = entries.values()
     prev_month = (first - timedelta(days=1)).replace(day=1)
     next_month = (first + timedelta(days=32)).replace(day=1)
@@ -891,7 +954,7 @@ def journal_calendar(request: Request, month: str = ""):
         if r["mood"] and r["day"][:7] == first.isoformat()[:7]:
             counts[r["mood"]] = counts.get(r["mood"], 0) + 1
     return render(request, "journal_calendar.html", nav="calendar", first=first, weeks=weeks, entries=entries,
-                  today=t, prev_month=prev_month, next_month=next_month if next_month <= t else None,
+                  occasions=occasions, today=t, prev_month=prev_month, next_month=next_month if next_month <= t else None,
                   mood_counts=sorted(counts.items(), key=lambda kv: -kv[1]))
 
 

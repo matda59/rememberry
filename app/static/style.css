@@ -318,6 +318,20 @@ ul.quick-notes li + li { border-top: 1px solid var(--line); }
 .calendar .today .num { color: var(--accent); font-weight: 700; }
 .calendar .other { opacity: .4; }
 .calendar .future { opacity: .35; }
+.occ { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; vertical-align: middle; }
+.occ.bday { background: #b8860b; }
+.occ.met { background: #2f6f8f; border-radius: 2px; }
+.calendar .occasions { position: absolute; top: .28rem; right: .22rem; display: flex; gap: .12rem; }
+.calendar .occ { display: block; width: .42rem; height: .42rem; }
+.calendar.mini .occasions { top: .12rem; right: .1rem; }
+.calendar.mini .occ { width: .34rem; height: .34rem; }
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .85rem; margin: .75rem 0 0; }
+:root[data-theme=dark] .occ.bday { background: #e0b04a; }
+:root[data-theme=dark] .occ.met { background: #7eb6d6; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]):not([data-theme=dark]) .occ.bday { background: #e0b04a; }
+  :root:not([data-theme=light]):not([data-theme=dark]) .occ.met { background: #7eb6d6; }
+}
 @media (max-width: 560px) {
   .calendar { gap: .2rem; }
   .calendar .mood { font-size: 1.2rem; margin-top: .55rem; }

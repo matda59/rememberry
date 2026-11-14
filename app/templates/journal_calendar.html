@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import occasion_marks, cal_legend %}
 {% block title %}{{ first.strftime("%B %Y") }} · Rememberry{% endblock %}
 {% block content %}
 <section class="card">
@@ -15,18 +16,24 @@
     {% for name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}<div class="dow">{{ name }}</div>{% endfor %}
     {% for week in weeks %}{% for d in week %}
     {% set e = entries.get(d.isoformat()) %}
+    {% set evs = occasions.get(d.isoformat(), []) %}
     {% set cls = ["day", "other" if d.month != first.month, "today" if d == today, "has" if e, "future" if d > today]|select|join(" ") %}
+    {% set tip = d.strftime('%a %d %b') %}
+    {% if e and e.mood %}{% set tip = tip ~ ': ' ~ moods[e.mood] %}{% endif %}
+    {% if evs %}{% set tip = tip ~ ' · ' ~ (evs|map(attribute='label')|join(', ')) %}{% endif %}
     {% if d > today %}
-    <span class="{{ cls }}"><span class="num">{{ d.day }}</span></span>
+    <span class="{{ cls }}" title="{{ tip }}"><span class="num">{{ d.day }}</span>{{ occasion_marks(evs) }}</span>
     {% else %}
-    <a class="{{ cls }}" href="{{ '/' if d == today else '/journal/' ~ d.isoformat() }}" title="{{ d.strftime('%a %d %b') }}{% if e and e.mood %}: {{ moods[e.mood] }}{% endif %}">
+    <a class="{{ cls }}" href="{{ '/' if d == today else '/journal/' ~ d.isoformat() }}" title="{{ tip }}">
       <span class="num">{{ d.day }}</span>
       {% if e and e.mood %}<span class="mood">{{ e.mood }}</span>{% elif e %}<span class="dot"></span>{% endif %}
       {% if e and e.photo %}<span class="cam" aria-label="photo">&#128247;&#xFE0E;</span>{% endif %}
+      {{ occasion_marks(evs) }}
     </a>
     {% endif %}
     {% endfor %}{% endfor %}
   </div>
+  {{ cal_legend() }}
   {% if mood_counts %}
   <p class="chips">{% for mood, n in mood_counts %}<span class="chip tag">{{ mood }} {{ moods[mood] }} <span class="count">{{ n }}</span></span>{% endfor %}</p>
   {% endif %}

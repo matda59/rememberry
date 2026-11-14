@@ -40,6 +40,21 @@
 </form>
 {%- endmacro %}
 
+{% macro occasion_marks(events) -%}
+{% if events %}
+{% set bdays = events|selectattr("kind", "equalto", "birthday")|list %}
+{% set mets = events|selectattr("kind", "equalto", "met")|list %}
+<span class="occasions">
+  {% if bdays %}<i class="occ bday" title="{{ bdays|map(attribute='label')|join(', ') }}"><span class="sr-only">{{ bdays|map(attribute='label')|join(', ') }}</span></i>{% endif %}
+  {% if mets %}<i class="occ met" title="{{ mets|map(attribute='label')|join(', ') }}"><span class="sr-only">{{ mets|map(attribute='label')|join(', ') }}</span></i>{% endif %}
+</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro cal_legend() -%}
+<p class="cal-legend muted small"><i class="occ bday" aria-hidden="true"></i> Birthday <i class="occ met" aria-hidden="true"></i> Meeting anniversary</p>
+{%- endmacro %}
+
 {% macro when(in_days) -%}
 {% if in_days == 0 %}today{% elif in_days == 1 %}tomorrow{% else %}in {{ in_days }} days{% endif %}
 {%- endmacro %}
