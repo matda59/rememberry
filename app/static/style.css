@@ -119,6 +119,12 @@ form.inline { display: inline; }
 .actions { display: flex; align-items: center; gap: .6rem; margin-top: .8rem; flex-wrap: wrap; }
 .pill { font-size: .8rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
 .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.saved-banner {
+  margin: 0 0 1rem; padding: .85rem 1rem; border-radius: 10px;
+  background: color-mix(in srgb, var(--ok) 18%, var(--card));
+  border: 2px solid var(--ok); color: var(--ok);
+  font-size: 1.2rem; font-weight: 750; letter-spacing: .01em;
+}
 
 .stack { display: grid; gap: 1rem; margin-top: 1rem; }
 .stack label { display: grid; gap: .35rem; font-weight: 600; font-size: .92rem; }

@@ -13,6 +13,7 @@ A small, self-hosted personal app with two things in it:
   - **Birthdays and meeting anniversaries** mark their days on the calendar (a gold dot and a blue square), separate from the mood. Clicking the day still opens the journal.
   - **Dictation**: the microphone on today's entry and on a journal day types as you speak in your browser's language; it needs Chrome or Edge over HTTPS, and the audio never leaves the browser.
   - **Drafts**: unsaved text in today's box or on a past day is kept in this browser. A refresh puts it back with a "Restored draft" note and a Discard button. A successful save clears it.
+  - **Saving** shows a clear Saved confirmation and opens that day's journal page. Saving again on that page stays there.
 
 Press **/** to focus the header search, unless the cursor is already in a field.
 

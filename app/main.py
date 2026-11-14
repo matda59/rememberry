@@ -979,8 +979,6 @@ def journal_calendar(request: Request, month: str = ""):
 def journal_day(request: Request, day: str):
     d = parse_day(day)
     t = today()
-    if d == t:
-        return redirect("/")
     return render(request, "journal_day.html", nav="journal", day=d, entry=get_entry(d), today=t,
                   mentioned=mentioned_people(d),
                   prev_day=d - timedelta(days=1), next_day=d + timedelta(days=1),
@@ -1013,7 +1011,7 @@ async def journal_save(
         index_day_mentions(conn, d.isoformat(), body)
     if new_photo and old_photo:
         delete_photo(old_photo)
-    dest = "/?saved=1" if d == today() else f"/journal/{d.isoformat()}?saved=1"
+    dest = f"/journal/{d.isoformat()}?saved=1"
     if undo:
         dest += "&undo=" + undo
     return redirect(dest)

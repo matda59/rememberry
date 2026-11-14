@@ -332,6 +332,15 @@
   });
 })();
 
+document.querySelectorAll("form[data-saving]").forEach((form) => {
+  form.addEventListener("submit", () => {
+    const btn = form.querySelector("button.primary");
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "Saving…";
+  });
+});
+
 // "/" focuses the header search unless the user is already typing in a field.
 (() => {
   const typing = (el) => {

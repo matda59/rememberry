@@ -13,13 +13,12 @@
     <a class="btn" href="/journal/{{ next_day.isoformat() }}" title="Next day">&rarr;</a>
     {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
   </div>
-  {% if saved %}<span data-clear-draft="{{ day.isoformat() }}" hidden></span>{% endif %}
-  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if saved %}<p class="saved-banner" role="status" data-clear-draft="{{ day.isoformat() }}">Saved</p>{% endif %}
+  <form method="post" action="/journal/{{ day.isoformat() }}" enctype="multipart/form-data" data-saving><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <textarea name="body" rows="10" placeholder="Nothing written for this day." data-mentions data-dictate data-draft="{{ day.isoformat() }}" autocomplete="off">{{ entry.body if entry else "" }}</textarea>
     {{ entry_extras(entry, moods) }}
     <div class="actions">
       <button class="primary">Save</button>
-      {% if saved %}<span class="pill ok">Saved</span>{% endif %}
     </div>
   </form>
   {% if entry and entry.photo %}{{ photo_delete(day, csrf_token) }}{% endif %}
