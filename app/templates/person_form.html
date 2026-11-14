@@ -31,6 +31,7 @@
     </label>
     <label>When / where we met
       <textarea name="met" rows="2">{{ person.met if person else '' }}</textarea>
+      <span class="hint">A date such as 2019-04-12 or 12 April 2019 shows “met N years ago” and an anniversary next to birthdays. Anything else stays as plain text.</span>
     </label>
     <label>Job / work
       <textarea name="work" rows="2">{{ person.work if person else '' }}</textarea>

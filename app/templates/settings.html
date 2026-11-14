@@ -67,7 +67,7 @@
     <h2>Birthday reminders</h2>
     <form method="post" action="/settings/test-notification"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button>Send test notification</button></form>
   </div>
-  <p>Checked daily from {{ "%02d:00"|format(hour) }} ({{ tz }}). Sends one message for birthdays today and in {{ days_ahead }} day{{ "s" if days_ahead != 1 }}.
+  <p>Checked daily from {{ "%02d:00"|format(hour) }} ({{ tz }}). Sends one message for birthdays and meeting anniversaries that are today or in {{ days_ahead }} day{{ "s" if days_ahead != 1 }}.
     {% if last_check %}<span class="muted">Last checked {{ last_check }}.</span>{% endif %}</p>
   {% if results %}
   <ul class="results">

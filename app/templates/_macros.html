@@ -38,16 +38,19 @@
 {% if in_days == 0 %}today{% elif in_days == 1 %}tomorrow{% else %}in {{ in_days }} days{% endif %}
 {%- endmacro %}
 
-{% macro birthday_list(birthdays) -%}
+{% macro birthday_list(events) -%}
 <section class="card">
-  <h2>Upcoming birthdays</h2>
-  {% if birthdays %}
+  <h2>{% if events and events|selectattr("kind", "equalto", "met")|list %}Birthdays &amp; anniversaries{% else %}Upcoming birthdays{% endif %}</h2>
+  {% if events %}
   <ul class="birthdays">
-    {% for b in birthdays %}
+    {% for b in events %}
     <li>
       <a href="/people/{{ b.id }}">
         {{ avatar(b, "sm") }}
-        <span class="grow"><strong>{{ b.name }}</strong>{% if b.turning %} turns {{ b.turning }}{% endif %}</span>
+        <span class="grow"><strong>{{ b.name }}</strong>
+          {% if b.kind == "met" %}<span class="muted small block">met {{ b.years }} year{{ "s" if b.years != 1 }} ago</span>
+          {% elif b.turning %} turns {{ b.turning }}{% endif %}
+        </span>
         <span class="muted {{ 'hot' if b.in_days <= 7 }}">{{ b.date.strftime("%a %d %b") }} &middot; {{ when(b.in_days) }}</span>
       </a>
     </li>

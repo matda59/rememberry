@@ -365,32 +365,131 @@ def upcoming_birthdays(days: int = 30):
         if delta <= days:
             result.append({
                 "id": row["id"], "name": row["name"], "photo": row["photo"], "date": nxt,
-                "in_days": delta, "turning": (nxt.year - year) if year else None,
+                "in_days": delta, "turning": (nxt.year - year) if year else None, "kind": "birthday",
             })
     return sorted(result, key=lambda r: r["in_days"])
 
 
+_MONTHS = {name: i for i, name in enumerate(
+    ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+     "november", "december"], 1)}
+_MONTHS.update({name[:3]: i for name, i in list(_MONTHS.items())})
+_MONTHS["sept"] = 9
+_MET_YMD = re.compile(r"\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b")
+_MET_DMY = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+([A-Za-z]+)\s+(\d{4})\b", re.I)
+_MET_MDY = re.compile(r"\b([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b", re.I)
+
+
+def _valid_date(year, month, day):
+    try:
+        return date(int(year), int(month), int(day))
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_met_date(text: str):
+    """First clear date in free text: YYYY-MM-DD, YYYY/MM/DD, or a month name with a day and year."""
+    if not text:
+        return None
+    found = []
+    for m in _MET_YMD.finditer(text):
+        d = _valid_date(m.group(1), m.group(2), m.group(3))
+        if d and 1900 <= d.year <= 2100:
+            found.append((m.start(), d))
+    for m in _MET_DMY.finditer(text):
+        month = _MONTHS.get(m.group(2).lower())
+        d = _valid_date(m.group(3), month, m.group(1)) if month else None
+        if d and 1900 <= d.year <= 2100:
+            found.append((m.start(), d))
+    for m in _MET_MDY.finditer(text):
+        month = _MONTHS.get(m.group(1).lower())
+        d = _valid_date(m.group(3), month, m.group(2)) if month else None
+        if d and 1900 <= d.year <= 2100:
+            found.append((m.start(), d))
+    if not found:
+        return None
+    found.sort(key=lambda item: item[0])
+    return found[0][1]
+
+
+def met_phrase(met: date, ref: date) -> str | None:
+    """'met N years ago' for a date on or before ref. Future dates and non-dates stay plain text."""
+    if met > ref:
+        return None
+    years = ref.year - met.year
+    if (ref.month, ref.day) < (met.month, met.day):
+        years -= 1
+    if years <= 0:
+        return "met this year"
+    if years == 1:
+        return "met 1 year ago"
+    return f"met {years} years ago"
+
+
+def upcoming_anniversaries(days: int = 30):
+    ref = today()
+    with db.connect() as conn:
+        rows = conn.execute("SELECT id, name, met, photo FROM people WHERE met != ''").fetchall()
+    result = []
+    for row in rows:
+        met = parse_met_date(row["met"])
+        if not met or met > ref:
+            continue
+        nxt = next_occurrence(met.month, met.day, ref)
+        years = nxt.year - met.year
+        if years < 1:
+            continue
+        delta = (nxt - ref).days
+        if delta <= days:
+            result.append({
+                "id": row["id"], "name": row["name"], "photo": row["photo"], "date": nxt,
+                "in_days": delta, "years": years, "kind": "met",
+            })
+    return result
+
+
+def upcoming_events(days: int = 30):
+    events = upcoming_birthdays(days) + upcoming_anniversaries(days)
+    return sorted(events, key=lambda r: (r["in_days"], r["name"].lower()))
+
+
+def _dashboard_upcoming():
+    """Soonest birthdays and meeting anniversaries, so one long list doesn't hide the other."""
+    events = upcoming_events()
+    shown = [e for e in events if e["kind"] == "birthday"][:5] + [e for e in events if e["kind"] == "met"][:5]
+    return sorted(shown, key=lambda r: (r["in_days"], r["name"].lower()))
+
+
 # ---------- reminders ----------
 
-def birthday_message(b) -> str:
-    who = f"{b['name']} turns {b['turning']}" if b["turning"] else f"{b['name']}'s birthday is"
-    when = "today" if b["in_days"] == 0 else "tomorrow" if b["in_days"] == 1 else f"in {b['in_days']} days"
-    return f"{who} {when} ({b['date']:%a %d %b})"
+def event_message(event) -> str:
+    when = "today" if event["in_days"] == 0 else "tomorrow" if event["in_days"] == 1 else f"in {event['in_days']} days"
+    if event["kind"] == "met":
+        unit = "year" if event["years"] == 1 else "years"
+        return f"You met {event['name']} {event['years']} {unit} ago {when} ({event['date']:%a %d %b})"
+    who = f"{event['name']} turns {event['turning']}" if event["turning"] else f"{event['name']}'s birthday is"
+    return f"{who} {when} ({event['date']:%a %d %b})"
 
 
 def send_birthday_reminders():
-    """Once a day after REMINDER_HOUR: one message covering birthdays today and REMINDER_DAYS_AHEAD days out."""
+    """Once a day after REMINDER_HOUR: birthdays and meeting anniversaries today and REMINDER_DAYS_AHEAD days out."""
     now = datetime.now(TZ)
     if not notify.any_configured() or now.hour < REMINDER_HOUR:
         return
     if db.get_setting("reminders_sent_for") == now.date().isoformat():
         return
     db.set_setting("reminders_sent_for", now.date().isoformat())
-    due = [b for b in upcoming_birthdays(REMINDER_DAYS_AHEAD) if b["in_days"] in (0, REMINDER_DAYS_AHEAD)]
+    due = [e for e in upcoming_events(REMINDER_DAYS_AHEAD) if e["in_days"] in (0, REMINDER_DAYS_AHEAD)]
     if not due:
         return
-    title = "Birthday reminder" if len(due) == 1 else f"{len(due)} birthday reminders"
-    for name, error in notify.send_all(title, "\n".join(birthday_message(b) for b in due)):
+    kinds = {e["kind"] for e in due}
+    if kinds == {"met"}:
+        title = "Anniversary reminder" if len(due) == 1 else f"{len(due)} anniversary reminders"
+    elif kinds == {"birthday"}:
+        title = "Birthday reminder" if len(due) == 1 else f"{len(due)} birthday reminders"
+    else:
+        title = f"{len(due)} reminders"
+    for name, error in notify.send_all(title, "\n".join(event_message(e) for e in due)):
         if error:
             log.warning("Birthday reminder via %s failed: %s", name, error)
         else:
@@ -697,7 +796,7 @@ def home(request: Request):
     entry = get_entry(t)
     written = bool(entry and (entry["body"] or entry["mood"] or entry["photo"]))
     return render(request, "home.html", nav="home", day=t, entry=entry, written=written, recent=recent,
-                  on_this_day=on_this_day, birthdays=upcoming_birthdays(), mentioned=mentioned_people(t),
+                  on_this_day=on_this_day, upcoming=_dashboard_upcoming(), mentioned=mentioned_people(t),
                   recent_people=recent_people, pinned_people=pinned_people, weeks=weeks, month_entries=month_entries,
                   first=first, stats=stats,
                   greeting=greeting(), editing=bool(request.query_params.get("edit")),
@@ -864,7 +963,7 @@ def people_list(request: Request, q: str = "", tag: str = ""):
                             "GROUP BY t.id ORDER BY t.name COLLATE NOCASE").fetchall()
         person_tags = tags_by_person(conn)
     return render(request, "people_list.html", nav="people", people=people, q=q, tag=tag, tags=tags,
-                  person_tags=person_tags, birthdays=upcoming_birthdays())
+                  person_tags=person_tags, upcoming=upcoming_events())
 
 
 def person_form(request: Request, person):
@@ -901,6 +1000,7 @@ async def person_create(
 @app.get("/people/{person_id}")
 def person_view(request: Request, person_id: int):
     person = get_person(person_id)
+    met_on = parse_met_date(person["met"])
     parsed = parse_birthday(person["birthday"])
     birthday_info = None
     if parsed:
@@ -917,6 +1017,7 @@ def person_view(request: Request, person_id: int):
         ).fetchall()
         tags = tags_by_person(conn).get(person_id, [])
     return render(request, "person_view.html", nav="people", person=person, birthday_info=birthday_info,
+                  met_phrase=met_phrase(met_on, today()) if met_on else None,
                   mentions=mentions, quick_notes=notes, tags=tags, today=today())
 
 

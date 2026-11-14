@@ -28,7 +28,10 @@
     </dd>
     {% endif %}
     {% if person.children %}<dt>Children</dt><dd class="pre">{{ person.children }}</dd>{% endif %}
-    {% if person.met %}<dt>How we met</dt><dd class="pre">{{ person.met }}</dd>{% endif %}
+    {% if person.met %}
+    <dt>How we met</dt>
+    <dd class="pre">{{ person.met }}{% if met_phrase %} <span class="muted">&middot; {{ met_phrase }}</span>{% endif %}</dd>
+    {% endif %}
     {% if person.work %}<dt>Work</dt><dd class="pre">{{ person.work }}</dd>{% endif %}
   </dl>
   <h2 id="quick-notes">Quick notes</h2>
