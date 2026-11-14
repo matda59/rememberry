@@ -34,7 +34,19 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted">{% if q or tag %}Nobody matches{% if q %} &ldquo;{{ q }}&rdquo;{% endif %}{% if tag %} in &ldquo;{{ tag }}&rdquo;{% endif %}.{% else %}No people yet. <a href="/people/new">Add someone</a>.{% endif %}</p>
+  {% if q or tag %}
+  <div class="empty">
+    <p><strong>Nobody matches{% if q %} &ldquo;{{ q }}&rdquo;{% endif %}{% if tag %} in &ldquo;{{ tag }}&rdquo;{% endif %}.</strong></p>
+    <p>Clear the filter, or add the person you were looking for.</p>
+    <p><a class="btn" href="/people">Show everyone</a> <a class="btn primary" href="/people/new">Add a person</a></p>
+  </div>
+  {% else %}
+  <div class="empty">
+    <p><strong>No people yet.</strong></p>
+    <p>Add someone you want to remember. A name is enough — birthday, notes, and tags can come later.</p>
+    <p><a class="btn primary" href="/people/new">Add a person</a></p>
+  </div>
+  {% endif %}
   {% endif %}
 </section>
 {% endblock %}

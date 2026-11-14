@@ -23,7 +23,19 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted">{% if q %}No entries match &ldquo;{{ q }}&rdquo;.{% else %}No entries yet. <a href="/">Write today's</a>.{% endif %}</p>
+  {% if q %}
+  <div class="empty">
+    <p><strong>No entries match &ldquo;{{ q }}&rdquo;.</strong></p>
+    <p>Try another word, or clear the search and write today's entry.</p>
+    <p><a class="btn" href="/journal">Clear search</a> <a class="btn primary" href="/#today">Write today</a></p>
+  </div>
+  {% else %}
+  <div class="empty">
+    <p><strong>Your journal is empty.</strong></p>
+    <p>Write a few lines about today. A mood, a photo, or an @mention can wait until you want them.</p>
+    <p><a class="btn primary" href="/#today">Write today's entry</a></p>
+  </div>
+  {% endif %}
   {% endif %}
 </section>
 <div class="pager">

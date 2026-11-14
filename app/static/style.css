@@ -119,6 +119,9 @@ form.inline { display: inline; }
 .actions { display: flex; align-items: center; gap: .6rem; margin-top: .8rem; flex-wrap: wrap; }
 .pill { font-size: .8rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
 .pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.empty { display: grid; gap: .35rem; justify-items: start; padding: .35rem 0 .2rem; }
+.empty p { margin: 0; }
+.empty .btn { margin-top: .45rem; }
 .saved-banner {
   margin: 0 0 1rem; padding: .85rem 1rem; border-radius: 10px;
   background: color-mix(in srgb, var(--ok) 18%, var(--card));
