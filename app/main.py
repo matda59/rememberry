@@ -874,6 +874,12 @@ def month_grid(conn, first: date):
     return weeks, {r["day"]: r for r in rows}
 
 
+def this_week(t: date) -> list[date]:
+    """Monday through Sunday of the week that contains t. t is already the user's timezone date."""
+    monday = t - timedelta(days=t.weekday())
+    return [monday + timedelta(days=i) for i in range(7)]
+
+
 def writing_streak(conn, t: date) -> int:
     """Consecutive days with an entry, ending today (or yesterday, so the streak survives until you write)."""
     days = {r["day"] for r in conn.execute(f"SELECT day FROM journal WHERE day <= ? AND {NONEMPTY_ENTRY}",
@@ -895,6 +901,7 @@ def greeting() -> str:
 def home(request: Request):
     t = today()
     first = t.replace(day=1)
+    week_days = this_week(t)
     with db.connect() as conn:
         recent = conn.execute(
             f"SELECT day, body, mood FROM journal WHERE day < ? AND {NONEMPTY_ENTRY} ORDER BY day DESC LIMIT 3",
@@ -913,6 +920,10 @@ def home(request: Request):
         ).fetchall()
         weeks, month_entries = month_grid(conn, first)
         occasions = occasions_on(conn, [d for week in weeks for d in week])
+        week_rows = conn.execute(
+            f"SELECT day, mood FROM journal WHERE day BETWEEN ? AND ? AND {NONEMPTY_ENTRY}",
+            (week_days[0].isoformat(), week_days[-1].isoformat()),
+        ).fetchall()
         quiet_people = not_mentioned_lately(conn, t)
         stats = {
             "streak": writing_streak(conn, t),
@@ -926,7 +937,8 @@ def home(request: Request):
                   on_this_day=on_this_day, upcoming=_dashboard_upcoming(), mentioned=mentioned_people(t),
                   quiet_people=quiet_people, quiet_days=QUIET_DAYS,
                   recent_people=recent_people, pinned_people=pinned_people, weeks=weeks, month_entries=month_entries,
-                  occasions=occasions, first=first, stats=stats,
+                  occasions=occasions, first=first, stats=stats, week_days=week_days,
+                  week_entries={r["day"]: r for r in week_rows},
                   greeting=greeting(), editing=bool(request.query_params.get("edit")),
                   saved=request.query_params.get("saved"))
 

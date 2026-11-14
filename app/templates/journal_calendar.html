@@ -12,6 +12,7 @@
     {% if next_month %}<a class="btn" href="/journal/calendar?month={{ next_month.isoformat()[:7] }}" title="Next month">&rarr;</a>
     {% else %}<span class="btn disabled">&rarr;</span>{% endif %}
   </div>
+  <p class="cal-jump"><a class="btn today-jump" href="/journal/calendar#cal-today">Today</a></p>
   <div class="calendar">
     {% for name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] %}<div class="dow">{{ name }}</div>{% endfor %}
     {% for week in weeks %}{% for d in week %}
@@ -24,7 +25,7 @@
     {% if d > today %}
     <span class="{{ cls }}" title="{{ tip }}"><span class="num">{{ d.day }}</span>{{ occasion_marks(evs) }}</span>
     {% else %}
-    <a class="{{ cls }}" href="{{ '/' if d == today else '/journal/' ~ d.isoformat() }}" title="{{ tip }}">
+    <a class="{{ cls }}" {% if d == today %}id="cal-today" aria-current="date"{% endif %} href="{{ '/' if d == today else '/journal/' ~ d.isoformat() }}" title="{{ tip }}">
       <span class="num">{{ d.day }}</span>
       {% if e and e.mood %}<span class="mood">{{ e.mood }}</span>{% elif e %}<span class="dot"></span>{% endif %}
       {% if e and e.photo %}<span class="cam" aria-label="photo">&#128247;&#xFE0E;</span>{% endif %}

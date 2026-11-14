@@ -13,6 +13,36 @@
   </div>
 </section>
 
+<section class="card week-strip" aria-label="This week">
+  <div class="week-head">
+    <h2>This week</h2>
+    <p class="muted small">
+      {% if week_days[0].month == week_days[-1].month and week_days[0].year == week_days[-1].year %}
+        {{ week_days[0].day }}–{{ week_days[-1].day }} {{ week_days[-1].strftime("%b") }}
+      {% else %}
+        {{ week_days[0].day }} {{ week_days[0].strftime("%b") }} – {{ week_days[-1].day }} {{ week_days[-1].strftime("%b") }}
+      {% endif %}
+    </p>
+  </div>
+  <div class="week-days">
+    {% for d in week_days %}
+    {% set e = week_entries.get(d.isoformat()) %}
+    <a class="week-day{{ ' today' if d == day }}{{ ' has' if e }}{{ ' future' if d > day }}"
+       href="/journal/{{ d.isoformat() }}"
+       {% if d == day %}aria-current="date"{% endif %}
+       title="{{ d.strftime('%A') }} {{ d.day }} {{ d.strftime('%b') }}{% if e and e.mood %}: {{ moods[e.mood] }}{% elif e %}: entry{% endif %}">
+      <span class="wd">{{ ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d.weekday()] }}</span>
+      <span class="wn">{{ d.day }}</span>
+      <span class="marks">
+        {% if e and e.mood %}<span class="mood" aria-hidden="true">{{ e.mood }}</span>{% endif %}
+        {% if e %}<span class="dot" aria-hidden="true"></span>{% endif %}
+      </span>
+      <span class="sr-only">{{ d.strftime('%A') }} {{ d.day }} {{ d.strftime('%B') }}{% if d == day %}, today{% endif %}{% if e and e.mood %}, {{ moods[e.mood] }}{% endif %}{% if e %}, journal entry{% endif %}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
 {% if pinned_people %}
 <section class="card pinned-card" aria-label="Pinned people">
   <h2>Pinned</h2>

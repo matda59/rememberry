@@ -1,7 +1,7 @@
 // Network-first pages with an offline fallback; static assets served from cache and refreshed in the background.
-const CACHE = "rememberry-v10";
+const CACHE = "rememberry-v11";
 const OFFLINE = "/static/offline.html";
-const PRECACHE = [OFFLINE, "/static/style.css", "/static/app.js", "/static/icon.svg", "/static/icons/icon-192.png"];
+const PRECACHE = [OFFLINE, "/static/style.css", "/static/app.js", "/static/icons/favicon-32.png", "/static/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
