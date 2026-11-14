@@ -46,6 +46,7 @@
       const insert = "@" + person.name + " ";
       textarea.value = v.slice(0, start) + insert + v.slice(caret);
       textarea.selectionStart = textarea.selectionEnd = start + insert.length;
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
       textarea.focus();
       close();
     };
@@ -169,6 +170,7 @@
       textarea.value = text;
       const caret = spoken ? joinEdge(prefix, spoken, "").length : prefix.length;
       try { textarea.setSelectionRange(caret, caret); } catch (err) { /* detached */ }
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
     };
     const render = () => applySpoken(joinParts([priorFinals, sessionFinals, interim]));
     const setListening = (on) => {
@@ -264,6 +266,69 @@
       };
     });
     btn.addEventListener("click", () => { if (want) stop(); else start(); });
+  });
+})();
+
+// Unsaved journal text stays in this browser until a successful save or a discard.
+(() => {
+  const keyFor = (day) => `rememberry:draft:${day}`;
+  const read = (day) => {
+    try {
+      const data = JSON.parse(localStorage.getItem(keyFor(day)) || "null");
+      return data && typeof data.body === "string" ? data : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const cleared = new Set();
+  document.querySelectorAll("[data-clear-draft]").forEach((el) => {
+    localStorage.removeItem(keyFor(el.dataset.clearDraft));
+    cleared.add(el.dataset.clearDraft);
+  });
+
+  document.querySelectorAll("textarea[data-draft]").forEach((textarea) => {
+    const day = textarea.dataset.draft;
+    const original = textarea.value;
+    const note = document.createElement("p");
+    note.className = "draft-note muted small";
+    note.hidden = true;
+    const discard = document.createElement("button");
+    discard.type = "button";
+    discard.className = "draft-discard";
+    discard.textContent = "Discard";
+    note.append("Restored draft. ", discard);
+    (textarea.closest(".mention-wrap") || textarea).before(note);
+
+    const persist = () => {
+      if (textarea.value === original) localStorage.removeItem(keyFor(day));
+      else localStorage.setItem(keyFor(day), JSON.stringify({ body: textarea.value }));
+    };
+    if (!cleared.has(day)) {
+      const stored = read(day);
+      if (stored && stored.body !== original) {
+        textarea.value = stored.body;
+        note.hidden = false;
+      } else if (stored) {
+        localStorage.removeItem(keyFor(day));
+      }
+    }
+
+    let timer = 0;
+    textarea.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        persist();
+        if (textarea.value === original) note.hidden = true;
+      }, 250);
+    });
+    discard.addEventListener("click", () => {
+      textarea.value = original;
+      localStorage.removeItem(keyFor(day));
+      note.hidden = true;
+      textarea.focus();
+    });
+    window.addEventListener("pagehide", persist);
   });
 })();
 

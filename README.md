@@ -10,6 +10,7 @@ A small, self-hosted personal app with two things in it:
   - **@mentions**: type `@` in an entry to pick a person (`@Sarah Chen`, or just `@Sarah` if no one else is called Sarah). Their page lists every day they were mentioned.
   - **Moods and photos**: pick a mood emoji and attach one photo per day. The journal calendar shows each day's mood for the month.
   - **Dictation**: the microphone on today's entry and on a journal day types as you speak in your browser's language; it needs Chrome or Edge over HTTPS, and the audio never leaves the browser.
+  - **Drafts**: unsaved text in today's box or on a past day is kept in this browser. A refresh puts it back with a "Restored draft" note and a Discard button. A successful save clears it.
 
 Plus a one-click **backup zip** (database + photos) and **Markdown export** of the journal on the settings page, and it's an **installable PWA** for your phone's home screen (see [Install on your phone](#install-on-your-phone)).
 

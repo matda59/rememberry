@@ -198,6 +198,12 @@ ul.birthdays .muted { font-size: .85rem; text-align: right; white-space: nowrap;
   border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: .85rem; font-weight: 600;
 }
 .chip:hover { text-decoration: none; }
+.draft-note { margin: 0 0 .45rem; }
+.draft-discard {
+  background: none; border: 0; padding: 0 0 0 .35rem; color: var(--accent);
+  font-weight: 600; cursor: pointer;
+}
+.draft-discard:hover { text-decoration: underline; }
 .mention-wrap { position: relative; }
 .mention-menu {
   position: absolute; left: 0; right: 0; z-index: 20; margin: .25rem 0 0; padding: .25rem; list-style: none;
