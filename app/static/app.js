@@ -387,6 +387,118 @@ document.querySelectorAll("form[data-saving]").forEach((form) => {
   });
 })();
 
+// Recent header searches, kept in this browser.
+(() => {
+  const KEY = "rememberry:recent-searches";
+  const MAX = 8;
+  const load = () => {
+    try {
+      const data = JSON.parse(localStorage.getItem(KEY) || "[]");
+      return Array.isArray(data) ? data.filter((s) => typeof s === "string" && s.trim()).slice(0, MAX) : [];
+    } catch (err) {
+      return [];
+    }
+  };
+  const save = (items) => localStorage.setItem(KEY, JSON.stringify(items.slice(0, MAX)));
+  const remember = (q) => {
+    const text = q.trim();
+    if (!text) return;
+    const items = load().filter((s) => s.toLowerCase() !== text.toLowerCase());
+    items.unshift(text);
+    save(items);
+  };
+
+  document.querySelectorAll("form.global-search").forEach((form) => {
+    const input = form.querySelector("input[name=q]");
+    if (!input) return;
+    form.addEventListener("submit", () => remember(input.value));
+
+    const panel = document.createElement("div");
+    panel.className = "recent-searches";
+    panel.hidden = true;
+    panel.setAttribute("role", "listbox");
+    panel.setAttribute("aria-label", "Recent searches");
+    form.append(panel);
+
+    let items = [];
+    let active = -1;
+
+    const draw = () => {
+      panel.replaceChildren();
+      if (!items.length) {
+        panel.hidden = true;
+        return;
+      }
+      const head = document.createElement("div");
+      head.className = "recent-head";
+      const label = document.createElement("span");
+      label.textContent = "Recent searches";
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "link";
+      clear.textContent = "Clear";
+      clear.addEventListener("mousedown", (event) => event.preventDefault());
+      clear.addEventListener("click", () => {
+        save([]);
+        items = [];
+        active = -1;
+        draw();
+        input.focus();
+      });
+      head.append(label, clear);
+      const list = document.createElement("ul");
+      items.forEach((text, i) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("role", "option");
+        btn.setAttribute("aria-selected", i === active ? "true" : "false");
+        btn.textContent = text;
+        if (i === active) btn.className = "active";
+        btn.addEventListener("mousedown", (event) => event.preventDefault());
+        btn.addEventListener("click", () => {
+          input.value = text;
+          if (typeof form.requestSubmit === "function") form.requestSubmit();
+          else form.submit();
+        });
+        li.append(btn);
+        list.append(li);
+      });
+      panel.append(head, list);
+      panel.hidden = false;
+    };
+
+    const refresh = () => {
+      const q = input.value.trim().toLowerCase();
+      const all = load();
+      items = (q ? all.filter((s) => s.toLowerCase().includes(q) && s.toLowerCase() !== q) : all);
+      active = -1;
+      draw();
+    };
+
+    input.addEventListener("focus", refresh);
+    input.addEventListener("input", refresh);
+    input.addEventListener("keydown", (event) => {
+      if (panel.hidden || !items.length) return;
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        active = (active + step + items.length) % items.length;
+        draw();
+      } else if (event.key === "Enter" && active >= 0) {
+        event.preventDefault();
+        input.value = items[active];
+        if (typeof form.requestSubmit === "function") form.requestSubmit();
+        else form.submit();
+      } else if (event.key === "Escape") {
+        panel.hidden = true;
+        active = -1;
+      }
+    });
+    input.addEventListener("blur", () => window.setTimeout(() => { panel.hidden = true; }, 150));
+  });
+})();
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
